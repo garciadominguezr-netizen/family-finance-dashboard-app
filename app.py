@@ -268,9 +268,14 @@ with tabs[0]:
     m3.metric("Deuda John Deere", money(float(current_status["john_deere_balance"])))
     m4.metric("Préstamo familiar", money(float(current_status["family_loan_balance"])))
 
-    st.subheader("Cash flow familiar mes a mes")
+    st.subheader("Evolución del cash flow familiar acumulado")
     st.altair_chart(
-        time_chart(family, ["cash_flow"], {"cash_flow": "Cash flow mensual"}, ["#2E86DE"]),
+        time_chart(
+            family,
+            ["cumulative_cash_flow"],
+            {"cumulative_cash_flow": "Cash flow familiar acumulado"},
+            ["#2E86DE"],
+        ),
         use_container_width=True,
     )
 
