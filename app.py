@@ -104,6 +104,9 @@ st.markdown(
 
 st.caption("Reforma, gastos personales, ahorro y deuda · periodo configurable")
 
+member_a_label = next(label for key, label in AUTHORIZED_USERS.values() if key == "member_a")
+member_b_label = next(label for key, label in AUTHORIZED_USERS.values() if key == "member_b")
+
 with st.sidebar:
     st.caption(f"Sesión: {display_name}")
     if person_key == "member_a":
@@ -123,6 +126,30 @@ with st.sidebar:
         value=float(data["savings"]["annual_interest"]),
         step=0.001,
         format="%.3f",
+    )
+    st.subheader("Ahorro inicial")
+    data["savings"]["base_balance"] = st.number_input(
+        "Saldo base familiar · julio 2026",
+        min_value=0.0,
+        value=float(data["savings"].get("base_balance", data["savings"].get("initial_balance", 0.0))),
+        step=100.0,
+    )
+    data["savings"]["member_a_extra"] = st.number_input(
+        f"Aportado extra · {member_a_label}",
+        min_value=0.0,
+        value=float(data["savings"].get("member_a_extra", 0.0)),
+        step=100.0,
+    )
+    data["savings"]["member_b_extra"] = st.number_input(
+        f"Aportado extra · {member_b_label}",
+        min_value=0.0,
+        value=float(data["savings"].get("member_b_extra", 0.0)),
+        step=100.0,
+    )
+    data["savings"]["initial_balance"] = (
+        data["savings"]["base_balance"]
+        + data["savings"]["member_a_extra"]
+        + data["savings"]["member_b_extra"]
     )
     data["debt"]["family_monthly_repayment"] = st.number_input(
         "Devolución mensual préstamo familiar",
@@ -174,8 +201,6 @@ def time_chart(frame: pd.DataFrame, fields: list[str], names: dict[str, str], co
     )
 
 
-member_a_label = next(label for key, label in AUTHORIZED_USERS.values() if key == "member_a")
-member_b_label = next(label for key, label in AUTHORIZED_USERS.values() if key == "member_b")
 tabs = st.tabs(["Resumen familiar", member_a_label, member_b_label, "Gastos comunes", "Reforma y deudas"])
 
 with tabs[1]:
@@ -247,7 +272,7 @@ def current_family_status(frame: pd.DataFrame) -> tuple[dict[str, float], str]:
     first_month = frame["month"].iloc[0]
     if current_month < first_month:
         return {
-            "savings_balance": float(data["savings"]["initial_balance"]),
+            "savings_balance": float(result["initial_savings"]),
             "john_deere_balance": float(data["debt"]["john_deere_principal"]),
             "family_loan_balance": float(data["debt"]["family_loan"]),
         }, f"Situación actual · {today.strftime('%d/%m/%Y')} · antes del inicio de la proyección"
@@ -261,15 +286,26 @@ def current_family_status(frame: pd.DataFrame) -> tuple[dict[str, float], str]:
 with tabs[0]:
     current_status, current_status_label = current_family_status(family)
     st.caption(current_status_label)
-    m1, m2, m3 = st.columns(3)
-    m1.metric("Ahorro familiar", money(float(current_status["savings_balance"])))
-    m2.metric("Deuda John Deere", money(float(current_status["john_deere_balance"])))
-    m3.metric("Préstamo familiar", money(float(current_status["family_loan_balance"])))
+    s1, s2, s3 = st.columns(3)
+    s1.metric("Ahorro familiar", money(float(current_status["savings_balance"])))
+    s2.metric(f"Aportado Extra {member_a_label}", money(float(data["savings"].get("member_a_extra", 0.0))))
+    s3.metric(f"Aportado Extra {member_b_label}", money(float(data["savings"].get("member_b_extra", 0.0))))
+    d1, d2 = st.columns(2)
+    d1.metric("Deuda John Deere", money(float(current_status["john_deere_balance"])))
+    d2.metric("Préstamo familiar", money(float(current_status["family_loan_balance"])))
 
     st.subheader("Evolución del ahorro familiar")
+    opening_month = family["month"].iloc[0] - pd.offsets.MonthBegin(1)
+    savings_history = pd.concat(
+        [
+            pd.DataFrame({"month": [opening_month], "savings_balance": [result["initial_savings"]]}),
+            family[["month", "savings_balance"]],
+        ],
+        ignore_index=True,
+    )
     st.altair_chart(
         time_chart(
-            family,
+            savings_history,
             ["savings_balance"],
             {"savings_balance": "Ahorro familiar"},
             ["#22A06B"],
