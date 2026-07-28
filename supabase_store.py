@@ -72,7 +72,12 @@ def load_data(client: Client, defaults: dict[str, Any], person_key: str) -> tupl
     if config:
         result["period"] = {"start": config["period_start"], "months": int(config["period_months"])}
         for key in ("reform", "funding", "debt", "savings"):
-            result[key] = config[key]
+            if isinstance(result.get(key), dict) and isinstance(config[key], dict):
+                merged = deepcopy(result[key])
+                merged.update(config[key])
+                result[key] = merged
+            else:
+                result[key] = config[key]
 
     summaries = client.rpc("get_household_member_summaries", {"target_household": household_id}).execute().data
     other_key = "member_b" if person_key == "member_a" else "member_a"
