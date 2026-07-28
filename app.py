@@ -146,6 +146,12 @@ with st.sidebar:
         value=float(data["savings"].get("member_b_extra", 0.0)),
         step=100.0,
     )
+    data["savings"]["reform_estimate"] = st.number_input(
+        "Gasto estimado total de la reforma",
+        min_value=0.0,
+        value=float(data["savings"].get("reform_estimate", 0.0)),
+        step=100.0,
+    )
     data["savings"]["initial_balance"] = (
         data["savings"]["base_balance"]
         + data["savings"]["member_a_extra"]
@@ -286,10 +292,11 @@ def current_family_status(frame: pd.DataFrame) -> tuple[dict[str, float], str]:
 with tabs[0]:
     current_status, current_status_label = current_family_status(family)
     st.caption(current_status_label)
-    s1, s2, s3 = st.columns(3)
+    s1, s2, s3, s4 = st.columns(4)
     s1.metric("Ahorro familiar", money(float(current_status["savings_balance"])))
     s2.metric(f"Aportado Extra {member_a_label}", money(float(data["savings"].get("member_a_extra", 0.0))))
     s3.metric(f"Aportado Extra {member_b_label}", money(float(data["savings"].get("member_b_extra", 0.0))))
+    s4.metric("Gasto estimado reforma", money(float(result["reform_total"])))
     d1, d2 = st.columns(2)
     d1.metric("Deuda John Deere", money(float(current_status["john_deere_balance"])))
     d2.metric("Préstamo familiar", money(float(current_status["family_loan_balance"])))
