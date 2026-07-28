@@ -122,7 +122,7 @@ def _replace_expenses(client: Client, household_id: str, user_id: str, scope: st
         client.table("expenses").delete().eq("id", row_id).execute()
 
 
-def save_data(client: Client, data: dict[str, Any], context: dict[str, Any], person_key: str) -> None:
+def save_data(client: Client, data: dict[str, Any], context: dict[str, Any], person_key: str) -> dict[str, Any]:
     hid, uid = context["household_id"], context["user_id"]
     person = data[person_key]
     client.table("personal_profiles").update({
@@ -137,3 +137,9 @@ def save_data(client: Client, data: dict[str, Any], context: dict[str, Any], per
         "reform": data["reform"], "funding": data["funding"], "debt": data["debt"],
         "savings": data["savings"], "updated_by": uid,
     }).eq("household_id", hid).execute()
+    stored = client.table("shared_config").select("reform,funding,debt,savings").eq(
+        "household_id", hid
+    ).single().execute().data
+    if not stored or stored.get("reform") != data["reform"]:
+        raise RuntimeError("La base de datos no confirmó el presupuesto de reforma.")
+    return stored
