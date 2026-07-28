@@ -1,0 +1,5 @@
+.venv/
+__pycache__/
+data/user_data.json
+.streamlit/secrets.toml
+.DS_Store
