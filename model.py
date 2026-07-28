@@ -88,11 +88,18 @@ def calculate(data: dict[str, Any]) -> dict[str, Any]:
     family["cash_flow"] = adjusted_cash
     family["cumulative_cash_flow"] = family["cash_flow"].cumsum()
 
-    monthly_rate = (1 + float(data["savings"]["annual_interest"])) ** (1 / 12) - 1
-    savings_balance = float(data["savings"]["initial_balance"])
+    savings_config = data["savings"]
+    base_savings = float(savings_config.get("base_balance", savings_config.get("initial_balance", 0.0)))
+    member_a_extra = float(savings_config.get("member_a_extra", 0.0))
+    member_b_extra = float(savings_config.get("member_b_extra", 0.0))
+    initial_savings = base_savings + member_a_extra + member_b_extra
+    monthly_rate = (1 + float(savings_config["annual_interest"])) ** (1 / 12) - 1
+    savings_balance = initial_savings
     savings_values = []
-    for _ in periods:
+    for index, _ in enumerate(periods):
         savings_balance = savings_balance * (1 + monthly_rate) + savings_monthly
+        if index == 0:
+            savings_balance -= funding_total
         savings_values.append(savings_balance)
     family["savings_contribution"] = savings_monthly
     family["savings_balance"] = savings_values
@@ -120,6 +127,7 @@ def calculate(data: dict[str, Any]) -> dict[str, Any]:
         "member_a_common": member_a_common,
         "member_b_common": member_b_common,
         "savings_monthly": savings_monthly,
+        "initial_savings": initial_savings,
         "reform_total": reform_total,
         "funding_total": funding_total,
         "reform_gap": reform_gap,
