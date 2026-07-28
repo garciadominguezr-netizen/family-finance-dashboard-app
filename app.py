@@ -301,23 +301,32 @@ with tabs[0]:
     d1.metric("Deuda John Deere", money(float(current_status["john_deere_balance"])))
     d2.metric("Préstamo familiar", money(float(current_status["family_loan_balance"])))
 
-    st.subheader("Evolución del ahorro familiar")
-    opening_month = family["month"].iloc[0] - pd.offsets.MonthBegin(1)
-    savings_history = pd.concat(
-        [
-            pd.DataFrame({"month": [opening_month], "savings_balance": [result["initial_savings"]]}),
-            family[["month", "savings_balance"]],
-        ],
-        ignore_index=True,
-    )
-    st.altair_chart(
-        time_chart(
-            savings_history,
-            ["savings_balance"],
-            {"savings_balance": "Ahorro familiar"},
-            ["#22A06B"],
+    st.subheader("Evolución del ahorro familiar tras pagar la reforma")
+    savings_history = family[["month", "savings_balance"]].copy()
+    savings_min = min(-1000.0, float(savings_history["savings_balance"].min()) * 1.15)
+    savings_max = max(1000.0, float(savings_history["savings_balance"].max()) * 1.10)
+    savings_line = alt.Chart(savings_history).mark_line(point=True, strokeWidth=2.8, color="#22A06B").encode(
+        x=alt.X("month:T", title=None, axis=alt.Axis(format="%b %Y")),
+        y=alt.Y(
+            "savings_balance:Q",
+            title="€",
+            scale=alt.Scale(domain=[savings_min, savings_max], zero=True),
         ),
-        use_container_width=True,
+        tooltip=[
+            alt.Tooltip("month:T", title="Mes", format="%b %Y"),
+            alt.Tooltip("savings_balance:Q", title="Ahorro", format=",.2f"),
+        ],
+    ).properties(height=330)
+    negative_points = alt.Chart(savings_history).mark_point(size=95, color="#E45756", filled=True).transform_filter(
+        alt.datum.savings_balance < 0
+    ).encode(x="month:T", y="savings_balance:Q")
+    zero_line = alt.Chart(pd.DataFrame({"zero": [0]})).mark_rule(
+        color="#E45756", strokeDash=[6, 4], strokeWidth=1.5
+    ).encode(y="zero:Q")
+    st.altair_chart(savings_line + negative_points + zero_line, use_container_width=True)
+    st.caption(
+        f"Capital disponible en julio: {money(result['initial_savings'])}. "
+        "La línea comienza después de aplicar el gasto estimado de la reforma en agosto."
     )
 
     st.subheader("Evolución de las deudas")
