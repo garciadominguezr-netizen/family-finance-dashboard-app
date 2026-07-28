@@ -131,7 +131,9 @@ def export_excel(result: dict[str, Any]) -> bytes:
     with pd.ExcelWriter(output, engine="openpyxl") as writer:
         result["member_a"].to_excel(writer, sheet_name="Miembro A", index=False)
         result["member_b"].to_excel(writer, sheet_name="Miembro B", index=False)
-        result["family"].to_excel(writer, sheet_name="Evolución familiar", index=False)
+        result["family"].drop(
+            columns=["cash_flow", "cumulative_cash_flow"], errors="ignore"
+        ).to_excel(writer, sheet_name="Evolución familiar", index=False)
         result["common"].to_excel(writer, sheet_name="Gastos comunes", index=False)
         pd.DataFrame(result["data"]["reform"]).to_excel(writer, sheet_name="Reforma", index=False)
         pd.DataFrame(result["data"]["funding"]).to_excel(writer, sheet_name="Financiación", index=False)
