@@ -239,28 +239,67 @@ with tabs[4]:
 result = calculate(data)
 family, member_a, member_b = result["family"], result["member_a"], result["member_b"]
 
+
+def current_family_status(frame: pd.DataFrame) -> tuple[dict[str, float], str]:
+    """Return the latest completed monthly status, or the opening position."""
+    today = pd.Timestamp.now(tz="Europe/Madrid").tz_localize(None).normalize()
+    current_month = today.replace(day=1)
+    first_month = frame["month"].iloc[0]
+    if current_month < first_month:
+        return {
+            "cumulative_cash_flow": 0.0,
+            "savings_balance": float(data["savings"]["initial_balance"]),
+            "john_deere_balance": float(data["debt"]["john_deere_principal"]),
+            "family_loan_balance": float(data["debt"]["family_loan"]),
+        }, f"Situación actual · {today.strftime('%d/%m/%Y')} · antes del inicio de la proyección"
+
+    eligible = frame.loc[frame["month"] <= current_month]
+    row = eligible.iloc[-1] if not eligible.empty else frame.iloc[0]
+    status_month = row["month"].strftime("%m/%Y")
+    return row.to_dict(), f"Situación actual estimada · mes {status_month}"
+
+
 with tabs[0]:
+    current_status, current_status_label = current_family_status(family)
+    st.caption(current_status_label)
     m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Cash flow familiar", money(float(family["cumulative_cash_flow"].iloc[-1])))
-    m2.metric("Ahorro acumulado", money(float(family["savings_balance"].iloc[-1])))
-    m3.metric("Deuda John Deere", money(float(family["john_deere_balance"].iloc[-1])))
-    m4.metric("Préstamo familiar", money(float(family["family_loan_balance"].iloc[-1])))
+    m1.metric("Cash flow acumulado", money(float(current_status["cumulative_cash_flow"])))
+    m2.metric("Ahorro familiar", money(float(current_status["savings_balance"])))
+    m3.metric("Deuda John Deere", money(float(current_status["john_deere_balance"])))
+    m4.metric("Préstamo familiar", money(float(current_status["family_loan_balance"])))
+
+    st.subheader("Cash flow familiar mes a mes")
     st.altair_chart(
-        time_chart(family, ["cumulative_cash_flow", "savings_balance", "john_deere_balance"], {
-            "cumulative_cash_flow": "Cash flow familiar", "savings_balance": "Ahorro", "john_deere_balance": "John Deere"
-        }),
+        time_chart(family, ["cash_flow"], {"cash_flow": "Cash flow mensual"}, ["#2E86DE"]),
         use_container_width=True,
     )
-    monthly = family[["month", "income", "cash_flow"]].melt("month", var_name="series", value_name="amount")
-    monthly["series"] = monthly["series"].map({"income": "Ingresos", "cash_flow": "Cash flow mensual"})
-    bars = alt.Chart(monthly).mark_bar().encode(
-        x=alt.X("month:T", title=None, axis=alt.Axis(format="%b %Y")),
-        y=alt.Y("amount:Q", title="€"),
-        color=alt.Color("series:N", title=None),
-        xOffset="series:N",
-        tooltip=[alt.Tooltip("month:T", format="%b %Y"), "series:N", alt.Tooltip("amount:Q", format=",.2f")],
-    ).properties(height=300)
-    st.altair_chart(bars, use_container_width=True)
+
+    st.subheader("Evolución del ahorro y las deudas")
+    st.altair_chart(
+        time_chart(
+            family,
+            ["savings_balance", "john_deere_balance", "family_loan_balance"],
+            {
+                "savings_balance": "Ahorro familiar",
+                "john_deere_balance": "Deuda John Deere",
+                "family_loan_balance": "Préstamo familiar",
+            },
+            ["#22A06B", "#E45756", "#F2A541"],
+        ),
+        use_container_width=True,
+    )
+
+    st.subheader("Indicadores de la proyección")
+    tightest = family.loc[family["cash_flow"].idxmin()]
+    p1, p2, p3 = st.columns(3)
+    p1.metric("Cash flow medio mensual", money(float(family["cash_flow"].mean())))
+    p2.metric(
+        "Mes más ajustado",
+        money(float(tightest["cash_flow"])),
+        help=f"Mes: {tightest['month'].strftime('%m/%Y')}",
+    )
+    projected_debt = float(family["john_deere_balance"].iloc[-1] + family["family_loan_balance"].iloc[-1])
+    p3.metric("Deuda total al final", money(projected_debt))
 
 
 def personal_dashboard(frame: pd.DataFrame, key: str, label: str) -> None:
