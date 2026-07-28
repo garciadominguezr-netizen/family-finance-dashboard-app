@@ -247,7 +247,6 @@ def current_family_status(frame: pd.DataFrame) -> tuple[dict[str, float], str]:
     first_month = frame["month"].iloc[0]
     if current_month < first_month:
         return {
-            "cumulative_cash_flow": 0.0,
             "savings_balance": float(data["savings"]["initial_balance"]),
             "john_deere_balance": float(data["debt"]["john_deere_principal"]),
             "family_loan_balance": float(data["debt"]["family_loan"]),
@@ -262,49 +261,35 @@ def current_family_status(frame: pd.DataFrame) -> tuple[dict[str, float], str]:
 with tabs[0]:
     current_status, current_status_label = current_family_status(family)
     st.caption(current_status_label)
-    m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Cash flow acumulado", money(float(current_status["cumulative_cash_flow"])))
-    m2.metric("Ahorro familiar", money(float(current_status["savings_balance"])))
-    m3.metric("Deuda John Deere", money(float(current_status["john_deere_balance"])))
-    m4.metric("Préstamo familiar", money(float(current_status["family_loan_balance"])))
+    m1, m2, m3 = st.columns(3)
+    m1.metric("Ahorro familiar", money(float(current_status["savings_balance"])))
+    m2.metric("Deuda John Deere", money(float(current_status["john_deere_balance"])))
+    m3.metric("Préstamo familiar", money(float(current_status["family_loan_balance"])))
 
-    st.subheader("Evolución del cash flow familiar acumulado")
+    st.subheader("Evolución del ahorro familiar")
     st.altair_chart(
         time_chart(
             family,
-            ["cumulative_cash_flow"],
-            {"cumulative_cash_flow": "Cash flow familiar acumulado"},
-            ["#2E86DE"],
+            ["savings_balance"],
+            {"savings_balance": "Ahorro familiar"},
+            ["#22A06B"],
         ),
         use_container_width=True,
     )
 
-    st.subheader("Evolución del ahorro y las deudas")
+    st.subheader("Evolución de las deudas")
     st.altair_chart(
         time_chart(
             family,
-            ["savings_balance", "john_deere_balance", "family_loan_balance"],
+            ["john_deere_balance", "family_loan_balance"],
             {
-                "savings_balance": "Ahorro familiar",
                 "john_deere_balance": "Deuda John Deere",
                 "family_loan_balance": "Préstamo familiar",
             },
-            ["#22A06B", "#E45756", "#F2A541"],
+            ["#E45756", "#F2A541"],
         ),
         use_container_width=True,
     )
-
-    st.subheader("Indicadores de la proyección")
-    tightest = family.loc[family["cash_flow"].idxmin()]
-    p1, p2, p3 = st.columns(3)
-    p1.metric("Cash flow medio mensual", money(float(family["cash_flow"].mean())))
-    p2.metric(
-        "Mes más ajustado",
-        money(float(tightest["cash_flow"])),
-        help=f"Mes: {tightest['month'].strftime('%m/%Y')}",
-    )
-    projected_debt = float(family["john_deere_balance"].iloc[-1] + family["family_loan_balance"].iloc[-1])
-    p3.metric("Deuda total al final", money(projected_debt))
 
 
 def personal_dashboard(frame: pd.DataFrame, key: str, label: str) -> None:
@@ -359,7 +344,7 @@ with tabs[4]:
     c1, c2, c3 = st.columns(3)
     c1.metric("Coste de reforma", money(result["reform_total"]))
     c2.metric("Financiación prevista", money(result["funding_total"]))
-    c3.metric("Ajuste desde cash flow", money(result["reform_gap"]))
+    c3.metric("Diferencia de financiación", money(result["reform_gap"]))
     st.altair_chart(time_chart(family, ["john_deere_balance", "family_loan_balance"], {"john_deere_balance":"John Deere", "family_loan_balance":"Préstamo familiar"}), use_container_width=True)
 
 
