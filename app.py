@@ -146,12 +146,6 @@ with st.sidebar:
         value=float(data["savings"].get("member_b_extra", 0.0)),
         step=100.0,
     )
-    data["savings"]["reform_estimate"] = st.number_input(
-        "Gasto estimado total de la reforma",
-        min_value=0.0,
-        value=float(data["savings"].get("reform_estimate", 0.0)),
-        step=100.0,
-    )
     data["savings"]["initial_balance"] = (
         data["savings"]["base_balance"]
         + data["savings"]["member_a_extra"]
@@ -251,6 +245,18 @@ with tabs[4]:
         }, key="reform_editor"
     )
     data["reform"] = normalize_records(reform_edited.to_dict("records"), ["amount"])
+    st.caption(
+        "El estimado general incluye además un ajuste no desglosado de "
+        f"{money(float(data['savings'].get('reform_estimate_adjustment', 0.0)))}. "
+        "Cada nueva partida se suma automáticamente al total."
+    )
+    if st.button("Guardar presupuesto de reforma", type="primary", use_container_width=True):
+        try:
+            save_data(client, data, db_context, person_key)
+            st.session_state.finance_data = deepcopy(data)
+            st.success("Presupuesto guardado y verificado en la base de datos.")
+        except Exception as exc:
+            st.error(f"No se ha podido guardar el presupuesto: {exc}")
     st.subheader("Financiación")
     funding_edited = st.data_editor(
         pd.DataFrame(data["funding"]), use_container_width=True, num_rows="dynamic", hide_index=True,
