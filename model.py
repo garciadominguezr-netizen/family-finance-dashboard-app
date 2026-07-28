@@ -35,7 +35,8 @@ def calculate(data: dict[str, Any]) -> dict[str, Any]:
     member_b_common = common_total - member_a_common
     savings_monthly = float(common.loc[common["category"] == "Ahorro", "monthly"].sum())
 
-    reform_total = sum(float(item["amount"]) for item in data["reform"])
+    itemized_reform_total = sum(float(item["amount"]) for item in data["reform"])
+    reform_total = float(data["savings"].get("reform_estimate", itemized_reform_total))
     funding_total = sum(float(item["amount"]) for item in data["funding"])
     reform_gap = max(0.0, reform_total - funding_total)
 
@@ -99,7 +100,7 @@ def calculate(data: dict[str, Any]) -> dict[str, Any]:
     for index, _ in enumerate(periods):
         savings_balance = savings_balance * (1 + monthly_rate) + savings_monthly
         if index == 0:
-            savings_balance -= funding_total
+            savings_balance -= reform_total
         savings_values.append(savings_balance)
     family["savings_contribution"] = savings_monthly
     family["savings_balance"] = savings_values
@@ -129,6 +130,7 @@ def calculate(data: dict[str, Any]) -> dict[str, Any]:
         "savings_monthly": savings_monthly,
         "initial_savings": initial_savings,
         "reform_total": reform_total,
+        "itemized_reform_total": itemized_reform_total,
         "funding_total": funding_total,
         "reform_gap": reform_gap,
     }
