@@ -43,9 +43,13 @@ def calculate(data: dict[str, Any]) -> dict[str, Any]:
     def person_frame(key: str, common_share: float) -> pd.DataFrame:
         person = data[key]
         personal_total = sum(float(item["monthly"]) for item in person["expenses"])
+        projected_salary = float(person["salary"])
+        january_raise_pct = float(person.get("january_raise_pct", 0.0))
         rows = []
         for index, month in enumerate(periods):
-            income = float(person["salary"])
+            if month.month == 1 and month > start:
+                projected_salary *= 1 + january_raise_pct / 100
+            income = projected_salary
             extra_income = 0.0
             extra_to_savings = 0.0
             if month.month in [int(x) for x in person["extra_months"]]:
@@ -61,6 +65,7 @@ def calculate(data: dict[str, Any]) -> dict[str, Any]:
             net = income - common_share - reform_adjustment - personal_total - extra_to_savings
             rows.append({
                 "month": month,
+                "ordinary_salary": projected_salary,
                 "income": income,
                 "extra_income": extra_income,
                 "extra_to_savings": extra_to_savings,
