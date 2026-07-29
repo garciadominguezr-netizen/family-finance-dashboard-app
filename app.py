@@ -865,9 +865,13 @@ with tabs[3]:
     reform_partida = reform_status["partida"].astype(str).str.casefold()
     energy_mask = reform_partida.str.contains("placas|aerotermia", regex=True)
     appliances_mask = reform_partida.str.contains("electrodomésticos|electrodomesticos", regex=True)
+    kitchen_mask = reform_partida.str.contains("cocina", regex=False)
     energy_total = float(reform_status.loc[energy_mask, "total_amount"].sum())
     appliances_total = float(reform_status.loc[appliances_mask, "total_amount"].sum())
-    house_reform_total = float(reform_status.loc[~energy_mask & ~appliances_mask, "total_amount"].sum())
+    kitchen_total = float(reform_status.loc[kitchen_mask, "total_amount"].sum())
+    house_reform_total = float(
+        reform_status.loc[~energy_mask & ~appliances_mask & ~kitchen_mask, "total_amount"].sum()
+    )
     with reform_metrics:
         financial_breakdown_metric(
             st.container(),
@@ -879,11 +883,12 @@ with tabs[3]:
             ],
         )
         st.write("")
-        r1, r2, r3, r4 = st.columns(4)
+        r1, r2, r3, r4, r5 = st.columns(5)
         financial_metric(r1, "Coste total de toda la reforma", money(result["reform_total"]))
         financial_metric(r2, "Reforma y casa", money(house_reform_total))
-        financial_metric(r3, "Placas y aerotermia", money(energy_total))
-        financial_metric(r4, "Electrodomésticos", money(appliances_total))
+        financial_metric(r3, "Cocina", money(kitchen_total))
+        financial_metric(r4, "Placas y aerotermia", money(energy_total))
+        financial_metric(r5, "Electrodomésticos", money(appliances_total))
     st.divider()
     st.subheader("Pagado y pendiente por partida")
     reform_by_partida = reform_status.groupby("partida", as_index=False).agg(
