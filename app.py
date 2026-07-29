@@ -483,6 +483,21 @@ PHOTO_REFORM_ROWS = [
     ("Aerotermia", "Aerotermia", 11576.50, 2431.065, "No pagado"),
 ]
 
+PREVIOUS_PENDING_ROWS = [
+    ("Cocina", "Presupuesto pendiente cocina", 4530.0),
+    ("Reforma", "Presupuesto pendiente reforma", 41861.0),
+    ("Placas solares", "Presupuesto pendiente placas solares", 3117.94),
+    ("Aerotermia", "Presupuesto pendiente aerotermia", 7018.7825),
+    ("Equipamiento casa", "Muebles de baño", 1800.0),
+    ("Materiales", "Material suelo baño", 500.0),
+    ("Equipamiento casa", "Sofás", 2400.0),
+    ("Electrodomésticos", "Frigorífico", 949.0),
+    ("Electrodomésticos", "Placa vitrocerámica", 1279.0),
+    ("Electrodomésticos", "Instalación vitrocerámica", 150.0),
+    ("Electrodomésticos", "Horno", 600.0),
+    ("Reforma", "Ajuste del presupuesto anterior", 550.9975),
+]
+
 
 def detailed_reform_row(partida: str, description: str, base: float, vat: float, status: str) -> dict:
     total = float(base) + float(vat)
@@ -500,24 +515,54 @@ def detailed_reform_row(partida: str, description: str, base: float, vat: float,
 
 
 def upgrade_reform_records(records: list[dict]) -> tuple[list[dict], bool]:
+    paid_photo = [detailed_reform_row(*row) for row in PHOTO_REFORM_ROWS if row[4] == "Pagado"]
     if records and all("partida" in row for row in records):
-        return records, False
-    detailed = [detailed_reform_row(*row) for row in PHOTO_REFORM_ROWS]
-    replaced_aggregates = {"cocina", "reforma", "placas solares", "aerotermia pendiente", "aerotermia"}
+        rejected_photo_descriptions = {
+            description.casefold() for _, description, _, _, status in PHOTO_REFORM_ROWS if status != "Pagado"
+        }
+        cleaned = [
+            row for row in records
+            if str(row.get("description", "")).casefold() not in rejected_photo_descriptions
+        ]
+        existing = {str(row.get("description", "")).casefold() for row in cleaned}
+        for partida, description, amount in PREVIOUS_PENDING_ROWS:
+            if description.casefold() not in existing:
+                pending = detailed_reform_row(partida, description, amount, 0.0, "No pagado")
+                pending["with_vat"] = True
+                cleaned.append(pending)
+        changed = len(cleaned) != len(records) or any(
+            description.casefold() not in {str(row.get("description", "")).casefold() for row in records}
+            for _, description, _ in PREVIOUS_PENDING_ROWS
+        )
+        return cleaned, changed
+    detailed = paid_photo
     appliance_terms = {"frigorífico", "placa vitrocerámica", "instalación vitrocerámica", "horno", "electrodomésticos"}
     for old in records:
         concept = str(old.get("concept", "")).strip()
-        if not concept or concept.casefold() in replaced_aggregates:
+        if not concept:
             continue
         folded = concept.casefold()
-        if folded in appliance_terms:
+        if folded == "cocina":
+            partida, concept = "Cocina", "Presupuesto pendiente cocina"
+        elif folded == "reforma":
+            partida, concept = "Reforma", "Presupuesto pendiente reforma"
+        elif folded == "placas solares":
+            partida, concept = "Placas solares", "Presupuesto pendiente placas solares"
+        elif folded in {"aerotermia pendiente", "aerotermia"}:
+            partida, concept = "Aerotermia", "Presupuesto pendiente aerotermia"
+        elif folded in appliance_terms:
             partida = "Electrodomésticos"
         elif "material" in folded or "suelo" in folded:
             partida = "Materiales"
         else:
             partida = "Equipamiento casa"
-        old_status = "Pagado" if old.get("status") == "Pagado" else "No pagado"
-        detailed.append(detailed_reform_row(partida, concept, float(old.get("amount", 0.0)), 0.0, old_status))
+        pending = detailed_reform_row(partida, concept, float(old.get("amount", 0.0)), 0.0, "No pagado")
+        pending["with_vat"] = True
+        detailed.append(pending)
+    if not any(str(row.get("description", "")).casefold() == "ajuste del presupuesto anterior" for row in detailed):
+        adjustment = detailed_reform_row("Reforma", "Ajuste del presupuesto anterior", 550.9975, 0.0, "No pagado")
+        adjustment["with_vat"] = True
+        detailed.append(adjustment)
     return detailed, True
 
 
