@@ -1003,15 +1003,19 @@ with tabs[2]:
                 ("Capital pendiente", money(float(data["debt"]["mortgage_current_balance"])), "negative"),
             ],
         )
+        st.write("")
+        member_a_reform_extra = float(data["savings"].get("member_a_extra", 0.0))
+        member_b_reform_extra = float(data["savings"].get("member_b_extra", 0.0))
+        financial_breakdown_metric(
+            st.container(),
+            "Aportaciones extraordinarias para la reforma",
+            [
+                (f"Aportado Extra {member_a_label}", money(member_a_reform_extra), "positive"),
+                (f"Aportado Extra {member_b_label}", money(member_b_reform_extra), "positive"),
+                ("Total aportado", money(member_a_reform_extra + member_b_reform_extra), "positive"),
+            ],
+        )
     st.divider()
-    c1, c2, c3 = st.columns(3)
-    financial_metric(c1, "Coste de reforma", money(result["reform_total"]))
-    financial_metric(c2, "Financiación prevista", money(result["funding_total"]), "positive")
-    financial_metric(c3, "Diferencia de financiación", money(result["reform_gap"]), "negative" if result["reform_gap"] > 0 else "positive")
-    st.subheader("Aportaciones extraordinarias para la reforma")
-    e1, e2 = st.columns(2)
-    financial_metric(e1, f"Aportado Extra {member_a_label}", money(float(data["savings"].get("member_a_extra", 0.0))), "positive")
-    financial_metric(e2, f"Aportado Extra {member_b_label}", money(float(data["savings"].get("member_b_extra", 0.0))), "positive")
     st.altair_chart(time_chart(family, ["john_deere_balance", "family_loan_balance"], {"john_deere_balance":"John Deere", "family_loan_balance":"Préstamo familiar"}), use_container_width=True)
     st.subheader("Evolución prevista de la hipoteca")
     mortgage_chart = alt.Chart(mortgage).mark_line(
