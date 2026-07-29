@@ -115,6 +115,7 @@ def calculate(data: dict[str, Any]) -> dict[str, Any]:
     savings_contributions = []
     vacation_amount = float(savings_config.get("vacation_amount", 0.0))
     vacation_month = pd.Timestamp(savings_config.get("vacation_month", periods[-1])).strftime("%Y-%m")
+    march_extra_contribution = float(savings_config.get("march_extra_contribution", 0.0))
     vacation_outflows = []
     for index, (month, extra_contribution) in enumerate(zip(periods, family["extra_to_savings"])):
         if month < savings_checkpoint:
@@ -127,7 +128,12 @@ def calculate(data: dict[str, Any]) -> dict[str, Any]:
             savings_contributions.append(0.0)
             vacation_outflows.append(0.0)
             continue
-        total_contribution = savings_monthly + float(extra_contribution)
+        march_contribution = (
+            march_extra_contribution
+            if data["scenario"]["include_march_bonus"] and month.month == 3
+            else 0.0
+        )
+        total_contribution = savings_monthly + float(extra_contribution) + march_contribution
         savings_balance = savings_balance * (1 + monthly_rate) + total_contribution
         if index == 0 and savings_checkpoint < month:
             savings_balance -= reform_total
