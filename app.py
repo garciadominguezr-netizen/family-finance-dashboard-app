@@ -624,6 +624,7 @@ with tabs[1]:
 
 with tabs[3]:
     data["reform"], reform_was_upgraded = upgrade_reform_records(data["reform"])
+    data["savings"]["reform_payment_amount"] = 65226.72
     if reform_was_upgraded:
         data["savings"]["reform_estimate_adjustment"] = 0.0
     reform_metrics = st.container()
