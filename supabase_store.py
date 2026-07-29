@@ -18,6 +18,18 @@ def sign_up(client: Client, email: str, password: str):
     return client.auth.sign_up({"email": email, "password": password})
 
 
+def request_password_reset(client: Client, email: str, redirect_to: str) -> None:
+    client.auth.reset_password_for_email(email, {"redirect_to": redirect_to})
+
+
+def open_recovery_session(client: Client, access_token: str, refresh_token: str):
+    return client.auth.set_session(access_token, refresh_token)
+
+
+def update_password(client: Client, password: str):
+    return client.auth.update_user({"password": password})
+
+
 def sign_out(client: Client) -> None:
     client.auth.sign_out()
 
