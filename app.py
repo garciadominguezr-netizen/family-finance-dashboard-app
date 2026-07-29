@@ -683,15 +683,6 @@ with tabs[3]:
 with tabs[2]:
     financing_debt_metrics = st.container()
     st.subheader("Financiación")
-    funding_edited = st.data_editor(
-        pd.DataFrame(data["funding"]), use_container_width=True, num_rows="dynamic", hide_index=True,
-        column_config={
-            "source": st.column_config.TextColumn("Fuente", required=True),
-            "type": st.column_config.TextColumn("Tipo", required=True),
-            "amount": st.column_config.NumberColumn("Importe", min_value=0.0, step=100.0, format="%.2f €"),
-        }, key="funding_editor"
-    )
-    data["funding"] = normalize_records(funding_edited.to_dict("records"), ["amount"])
     mortgage_defaults = {
         "mortgage_initial_principal": 460000.0,
         "mortgage_current_balance": 457943.42,
