@@ -146,6 +146,19 @@ with st.sidebar:
         value=float(data["savings"].get("member_b_extra", 0.0)),
         step=100.0,
     )
+    st.subheader("Pagas extra al ahorro")
+    data["savings"]["member_a_extra_pay_contribution"] = st.number_input(
+        f"Aportación por paga extra · {member_a_label}",
+        min_value=0.0,
+        value=float(data["savings"].get("member_a_extra_pay_contribution", 3000.0)),
+        step=100.0,
+    )
+    data["savings"]["member_b_extra_pay_contribution"] = st.number_input(
+        f"Aportación por paga extra · {member_b_label}",
+        min_value=0.0,
+        value=float(data["savings"].get("member_b_extra_pay_contribution", 3000.0)),
+        step=100.0,
+    )
     data["savings"]["initial_balance"] = (
         data["savings"]["base_balance"]
         + data["savings"]["member_a_extra"]
@@ -353,14 +366,23 @@ with tabs[0]:
 def personal_dashboard(frame: pd.DataFrame, key: str, label: str) -> None:
     expenses = pd.DataFrame(data[key]["expenses"])
     total_personal = float(expenses["monthly"].sum()) if not expenses.empty else 0.0
-    c1, c2, c3, c4 = st.columns(4)
+    c1, c2, c3, c4, c5 = st.columns(5)
     c1.metric("Ingresos del periodo", money(float(frame["income"].sum())))
     c2.metric("Gasto común", money(float(frame["common"].sum() + frame["reform_adjustment"].sum())))
     c3.metric("Gasto personal", money(float(frame["personal"].sum())))
-    c4.metric("Neto acumulado", money(float(frame["cumulative_net"].iloc[-1])))
+    c4.metric("Pagas extra al ahorro", money(float(frame["extra_to_savings"].sum())))
+    c5.metric("Neto acumulado", money(float(frame["cumulative_net"].iloc[-1])))
     left, right = st.columns([1.1, 1])
     with left:
-        st.altair_chart(time_chart(frame, ["net", "cumulative_net"], {"net": "Neto mensual", "cumulative_net": "Neto acumulado"}), use_container_width=True)
+        st.altair_chart(
+            time_chart(
+                frame,
+                ["net", "extra_personal_remainder"],
+                {"net": "Neto mensual", "extra_personal_remainder": "Parte personal de la paga extra"},
+                ["#2E86DE", "#F2A541"],
+            ),
+            use_container_width=True,
+        )
     with right:
         if total_personal > 0:
             chart_data = expenses.groupby("concept", as_index=False)["monthly"].sum()
@@ -371,7 +393,7 @@ def personal_dashboard(frame: pd.DataFrame, key: str, label: str) -> None:
             st.altair_chart(donut, use_container_width=True)
     display = frame.copy()
     display["month"] = display["month"].dt.strftime("%b %Y")
-    st.dataframe(display.rename(columns={"month":"Mes","income":"Ingresos","common":"Comunes","reform_adjustment":"Reforma","personal":"Personales","net":"Neto mensual","cumulative_net":"Neto acumulado"}), use_container_width=True, hide_index=True)
+    st.dataframe(display.rename(columns={"month":"Mes","income":"Ingresos","extra_income":"Paga extra","extra_to_savings":"Extra al ahorro","extra_personal_remainder":"Extra personal","common":"Comunes","reform_adjustment":"Reforma","personal":"Personales","net":"Neto mensual","cumulative_net":"Neto acumulado"}), use_container_width=True, hide_index=True)
 
 
 with tabs[1]:
