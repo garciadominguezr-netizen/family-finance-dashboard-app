@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from copy import deepcopy
+from html import escape
 
 import altair as alt
 import pandas as pd
@@ -125,6 +126,8 @@ st.markdown(
         --ra-gold-dark: #896719;
         --ra-gold-soft: #F7F0DF;
         --ra-ink: #28241D;
+        --ra-positive: #168A57;
+        --ra-negative: #C63D3D;
       }
       .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
         background: #FFFFFF;
@@ -133,7 +136,8 @@ st.markdown(
       .block-container {padding-top: 1.3rem; padding-bottom: 3rem;}
       [data-testid="stSidebar"] {background: #FCF9F2; border-right: 1px solid #E6D4A7;}
       [data-testid="stSidebar"] > div {background: #FCF9F2;}
-      h1, h2, h3 {letter-spacing: -0.02em; color: var(--ra-ink);}
+      html, body, [class*="css"] {font-family: Inter, "SF Pro Display", "Segoe UI", sans-serif;}
+      h1, h2, h3 {letter-spacing: -0.035em; color: var(--ra-ink); font-weight: 650;}
       h1 {color: var(--ra-gold-dark);}
       [data-testid="stMetric"] {
         background: linear-gradient(145deg, #FFFFFF 35%, #FBF6EA 100%);
@@ -170,10 +174,25 @@ st.markdown(
       [data-testid="stDataFrame"] {border: 1px solid #E2CC94; border-radius: .65rem; overflow: hidden;}
       hr {border-color: #E6D4A7;}
       a {color: var(--ra-gold-dark);}
+      .finance-card {background:#FFFFFF; border:1px solid #E8E4DC; border-radius:14px; padding:16px 18px; min-height:102px; box-shadow:0 4px 16px rgba(30,28,24,.045);}
+      .finance-card .finance-label {font-size:.82rem; font-weight:650; color:#706B62; margin-bottom:8px; letter-spacing:.01em;}
+      .finance-card .finance-value {font-size:1.72rem; line-height:1.15; font-weight:720; letter-spacing:-.035em; color:var(--ra-ink);}
+      .finance-card.positive {border-top:3px solid var(--ra-positive);}
+      .finance-card.positive .finance-value {color:var(--ra-positive);}
+      .finance-card.negative {border-top:3px solid var(--ra-negative);}
+      .finance-card.negative .finance-value {color:var(--ra-negative);}
+      .finance-card.neutral {border-top:3px solid #34312C;}
     </style>
     """,
     unsafe_allow_html=True,
 )
+
+def financial_metric(container, label: str, value: str, tone: str = "neutral") -> None:
+    container.markdown(
+        f'<div class="finance-card {tone}"><div class="finance-label">{escape(label)}</div>'
+        f'<div class="finance-value">{escape(value)}</div></div>',
+        unsafe_allow_html=True,
+    )
 
 st.caption("Reforma, gastos personales, ahorro y deuda · periodo configurable")
 
@@ -321,10 +340,10 @@ def person_editor(key: str, label: str) -> None:
     ordinary_net = float(person["salary"]) - common_monthly - personal_monthly
     with metrics:
         k1, k2, k3, k4 = st.columns(4)
-        k1.metric("Nómina mensual", money(float(person["salary"])))
-        k2.metric("Gasto común mensual", money(common_monthly))
-        k3.metric("Gastos personales mensuales", money(personal_monthly))
-        k4.metric("Neto restante mensual", money(ordinary_net))
+        financial_metric(k1, "Nómina mensual", money(float(person["salary"])))
+        financial_metric(k2, "Gasto común mensual", money(common_monthly))
+        financial_metric(k3, "Gastos personales mensuales", money(personal_monthly))
+        financial_metric(k4, "Neto restante mensual", money(ordinary_net), "positive" if ordinary_net >= 0 else "negative")
 
 
 def time_chart(frame: pd.DataFrame, fields: list[str], names: dict[str, str], colors: list[str] | None = None):
@@ -450,11 +469,11 @@ with tabs[0]:
     current_status, current_status_label = current_family_status(family)
     st.caption(current_status_label)
     s1, s2 = st.columns(2)
-    s1.metric("Ahorro familiar", money(float(current_status["savings_balance"])))
-    s2.metric("Gasto estimado reforma", money(float(result["reform_total"])))
+    financial_metric(s1, "Ahorro familiar", money(float(current_status["savings_balance"])), "positive")
+    financial_metric(s2, "Gasto estimado reforma", money(float(result["reform_total"])))
     d1, d2 = st.columns(2)
-    d1.metric("Deuda John Deere", money(float(current_status["john_deere_balance"])))
-    d2.metric("Préstamo familiar", money(float(current_status["family_loan_balance"])))
+    financial_metric(d1, "Deuda John Deere", money(float(current_status["john_deere_balance"])), "negative")
+    financial_metric(d2, "Préstamo familiar", money(float(current_status["family_loan_balance"])), "negative")
 
     st.subheader("Evolución del ahorro familiar tras pagar la reforma")
     savings_history = family[["month", "savings_balance"]].dropna().copy()
@@ -524,7 +543,7 @@ def personal_dashboard(frame: pd.DataFrame, key: str, label: str) -> None:
     st.subheader("Capacidad de ahorro")
     cashflow_chart = (
         alt.Chart(frame)
-        .mark_line(point=alt.OverlayMarkDef(filled=True, size=75), strokeWidth=3, color="#B48A2C")
+        .mark_line(point=alt.OverlayMarkDef(filled=True, size=75), strokeWidth=3, color="#168A57")
         .encode(
             x=alt.X("month:T", title=None, axis=alt.Axis(format="%b %Y")),
             y=alt.Y("cumulative_net:Q", title="Capacidad de ahorro acumulada (€)", scale=alt.Scale(zero=True)),
@@ -554,9 +573,9 @@ with tabs[3]:
 with tabs[1]:
     st.divider()
     c1, c2, c3 = st.columns(3)
-    c1.metric("Total común mensual", money(result["common_total"]))
-    c2.metric(f"Parte de {member_a_label}", money(result["member_a_common"]))
-    c3.metric(f"Parte de {member_b_label}", money(result["member_b_common"]))
+    financial_metric(c1, "Total común mensual", money(result["common_total"]))
+    financial_metric(c2, f"Parte de {member_a_label}", money(result["member_a_common"]))
+    financial_metric(c3, f"Parte de {member_b_label}", money(result["member_b_common"]))
     category = result["common"].groupby("category", as_index=False)["monthly"].sum()
     category_chart = alt.Chart(category).mark_bar().encode(
         x=alt.X("monthly:Q", title="€ al mes"), y=alt.Y("category:N", title=None, sort="-x"),
@@ -567,13 +586,13 @@ with tabs[1]:
 with tabs[2]:
     st.divider()
     c1, c2, c3 = st.columns(3)
-    c1.metric("Coste de reforma", money(result["reform_total"]))
-    c2.metric("Financiación prevista", money(result["funding_total"]))
-    c3.metric("Diferencia de financiación", money(result["reform_gap"]))
+    financial_metric(c1, "Coste de reforma", money(result["reform_total"]))
+    financial_metric(c2, "Financiación prevista", money(result["funding_total"]), "positive")
+    financial_metric(c3, "Diferencia de financiación", money(result["reform_gap"]), "negative" if result["reform_gap"] > 0 else "positive")
     st.subheader("Aportaciones extraordinarias para la reforma")
     e1, e2 = st.columns(2)
-    e1.metric(f"Aportado Extra {member_a_label}", money(float(data["savings"].get("member_a_extra", 0.0))))
-    e2.metric(f"Aportado Extra {member_b_label}", money(float(data["savings"].get("member_b_extra", 0.0))))
+    financial_metric(e1, f"Aportado Extra {member_a_label}", money(float(data["savings"].get("member_a_extra", 0.0))), "positive")
+    financial_metric(e2, f"Aportado Extra {member_b_label}", money(float(data["savings"].get("member_b_extra", 0.0))), "positive")
     st.altair_chart(time_chart(family, ["john_deere_balance", "family_loan_balance"], {"john_deere_balance":"John Deere", "family_loan_balance":"Préstamo familiar"}), use_container_width=True)
 
 
