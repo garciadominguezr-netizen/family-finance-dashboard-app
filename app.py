@@ -681,6 +681,7 @@ with tabs[3]:
         except Exception as exc:
             st.error(f"No se ha podido guardar el histórico: {exc}")
 with tabs[2]:
+    financing_debt_metrics = st.container()
     st.subheader("Financiación")
     funding_edited = st.data_editor(
         pd.DataFrame(data["funding"]), use_container_width=True, num_rows="dynamic", hide_index=True,
@@ -695,10 +696,54 @@ with tabs[2]:
     data["debt"]["john_deere_principal"] = d1.number_input("Capital John Deere", min_value=0.0, value=float(data["debt"]["john_deere_principal"]), step=500.0)
     data["debt"]["john_deere_months"] = d2.number_input("Plazo John Deere (meses)", min_value=1, value=int(data["debt"]["john_deere_months"]), step=1)
     data["debt"]["family_loan"] = d3.number_input("Préstamo familiar", min_value=0.0, value=float(data["debt"]["family_loan"]), step=100.0)
+    mortgage_defaults = {
+        "mortgage_initial_principal": 460000.0,
+        "mortgage_current_balance": 457943.42,
+        "mortgage_actual_payments": 2,
+        "mortgage_start": "2026-05-13",
+        "mortgage_first_payment": "2026-06-01",
+        "mortgage_term_months": 360,
+        "mortgage_payment_first_period": 1565.84,
+        "mortgage_first_fixed_months": 6,
+        "mortgage_first_fixed_rate": 1.4,
+        "mortgage_second_fixed_months": 54,
+        "mortgage_second_fixed_rate": 2.3,
+        "mortgage_euribor_assumption": 2.0,
+        "mortgage_variable_spread": 1.35,
+    }
+    for mortgage_key, mortgage_value in mortgage_defaults.items():
+        data["debt"].setdefault(mortgage_key, mortgage_value)
+    st.subheader("Hipoteca")
+    h1, h2, h3, h4 = st.columns(4)
+    data["debt"]["mortgage_initial_principal"] = h1.number_input(
+        "Capital inicial", min_value=0.0, value=float(data["debt"]["mortgage_initial_principal"]), step=1000.0
+    )
+    data["debt"]["mortgage_current_balance"] = h2.number_input(
+        "Capital pendiente real", min_value=0.0, value=float(data["debt"]["mortgage_current_balance"]), step=100.0
+    )
+    data["debt"]["mortgage_payment_first_period"] = h3.number_input(
+        "Cuota hipotecaria real", min_value=0.0, value=float(data["debt"]["mortgage_payment_first_period"]), step=10.0
+    )
+    data["debt"]["mortgage_actual_payments"] = h4.number_input(
+        "Cuotas ya pagadas", min_value=0, max_value=int(data["debt"]["mortgage_term_months"]), value=int(data["debt"]["mortgage_actual_payments"]), step=1
+    )
+    data["debt"]["mortgage_euribor_assumption"] = st.slider(
+        "Euríbor futuro estimado para el tramo variable (%)",
+        min_value=-0.5,
+        max_value=6.0,
+        value=float(data["debt"]["mortgage_euribor_assumption"]),
+        step=0.1,
+        help="Solo afecta a la proyección posterior a los primeros 60 meses.",
+    )
+    st.caption(
+        "Condiciones contractuales: 360 meses · 1,40 % los primeros 6 meses · "
+        "2,30 % los siguientes 54 meses · después Euríbor 12 meses + 1,35 puntos, "
+        "con revisión semestral. En Gastos comunes se mantienen 1.600 € mensuales."
+    )
 
 
 result = calculate(data)
-family, member_a, member_b = result["family"], result["member_a"], result["member_b"]
+family, member_a, member_b, mortgage = result["family"], result["member_a"], result["member_b"], result["mortgage"]
 
 
 def current_family_status(frame: pd.DataFrame) -> tuple[dict[str, float], str]:
@@ -939,6 +984,18 @@ with tabs[3]:
     st.caption(f"Base acumulada: {money(reform_base_total)} · IVA acumulado: {money(reform_vat_total)}")
 
 with tabs[2]:
+    with financing_debt_metrics:
+        jd_debt = float(data["debt"]["john_deere_principal"])
+        family_debt = float(data["debt"]["family_loan"])
+        financial_breakdown_metric(
+            st.container(),
+            "Créditos familiares",
+            [
+                ("John Deere", money(jd_debt), "negative"),
+                ("Préstamo familiar", money(family_debt), "negative"),
+                ("Total", money(jd_debt + family_debt), "negative"),
+            ],
+        )
     st.divider()
     c1, c2, c3 = st.columns(3)
     financial_metric(c1, "Coste de reforma", money(result["reform_total"]))
@@ -949,6 +1006,44 @@ with tabs[2]:
     financial_metric(e1, f"Aportado Extra {member_a_label}", money(float(data["savings"].get("member_a_extra", 0.0))), "positive")
     financial_metric(e2, f"Aportado Extra {member_b_label}", money(float(data["savings"].get("member_b_extra", 0.0))), "positive")
     st.altair_chart(time_chart(family, ["john_deere_balance", "family_loan_balance"], {"john_deere_balance":"John Deere", "family_loan_balance":"Préstamo familiar"}), use_container_width=True)
+    st.subheader("Evolución prevista de la hipoteca")
+    mortgage_amortized = float(data["debt"]["mortgage_initial_principal"]) - float(data["debt"]["mortgage_current_balance"])
+    financial_breakdown_metric(
+        st.container(),
+        "Situación hipotecaria actual",
+        [
+            ("Capital inicial", money(float(data["debt"]["mortgage_initial_principal"])), "neutral"),
+            ("Capital amortizado", money(mortgage_amortized), "positive"),
+            ("Capital pendiente", money(float(data["debt"]["mortgage_current_balance"])), "negative"),
+        ],
+    )
+    st.write("")
+    mortgage_chart = alt.Chart(mortgage).mark_line(
+        color="#B48A2C", strokeWidth=3, point=alt.OverlayMarkDef(filled=True, size=20)
+    ).encode(
+        x=alt.X("month:T", title=None, axis=alt.Axis(format="%Y")),
+        y=alt.Y("balance:Q", title="Capital pendiente (€)", scale=alt.Scale(zero=True)),
+        tooltip=[
+            alt.Tooltip("month:T", title="Mes", format="%b %Y"),
+            alt.Tooltip("phase:N", title="Tramo"),
+            alt.Tooltip("annual_rate:Q", title="Tipo nominal", format=".2f"),
+            alt.Tooltip("payment:Q", title="Cuota", format=",.2f"),
+            alt.Tooltip("interest:Q", title="Intereses", format=",.2f"),
+            alt.Tooltip("principal:Q", title="Capital amortizado", format=",.2f"),
+            alt.Tooltip("balance:Q", title="Deuda pendiente", format=",.2f"),
+        ],
+    ).properties(height=420)
+    st.altair_chart(mortgage_chart, use_container_width=True)
+    projected_variable_rate = max(
+        0.0,
+        float(data["debt"]["mortgage_euribor_assumption"])
+        + float(data["debt"]["mortgage_variable_spread"]),
+    )
+    st.caption(
+        "Proyección por sistema de amortización francés, anclada al saldo real indicado. "
+        f"Para el tramo variable se supone un tipo constante del {projected_variable_rate:.2f} % "
+        "(Euríbor estimado + 1,35). Las cuotas futuras se recalculan cuando cambia el tipo."
+    )
 
 
 with st.sidebar:
