@@ -116,8 +116,18 @@ with st.sidebar:
     data["scenario"]["include_march_bonus"] = st.toggle(
         "Incluir bonus de marzo",
         value=bool(data["scenario"]["include_march_bonus"]),
-        help="Activa los importes potenciales introducidos por ambos miembros.",
+        help="Añade al ahorro familiar el importe extraordinario indicado para marzo.",
     )
+    stored_march_extra = float(data["savings"].get("march_extra_contribution", 0.0))
+    march_extra_input = st.number_input(
+        "Aportación extra familiar en marzo",
+        min_value=0.0,
+        value=stored_march_extra if stored_march_extra > 0 else None,
+        step=100.0,
+        placeholder="Introduce el importe",
+        disabled=not data["scenario"]["include_march_bonus"],
+    )
+    data["savings"]["march_extra_contribution"] = 0.0 if march_extra_input is None else float(march_extra_input)
     st.subheader("Punto de partida del ahorro")
     savings_periods = pd.date_range(
         start=pd.Timestamp(data["period"]["start"]),
