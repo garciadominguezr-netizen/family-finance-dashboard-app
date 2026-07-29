@@ -883,12 +883,18 @@ with tabs[3]:
             ],
         )
         st.write("")
-        r1, r2, r3, r4, r5 = st.columns(5)
+        r1, r2, r3 = st.columns([1, 1, 2])
         financial_metric(r1, "Coste total de toda la reforma", money(result["reform_total"]))
         financial_metric(r2, "Reforma y casa", money(house_reform_total))
-        financial_metric(r3, "Cocina", money(kitchen_total))
-        financial_metric(r4, "Placas y aerotermia", money(energy_total))
-        financial_metric(r5, "Electrodomésticos", money(appliances_total))
+        financial_breakdown_metric(
+            r3,
+            "Cocina · Electrodomésticos · Energía",
+            [
+                ("Cocina", money(kitchen_total), "neutral"),
+                ("Electrodomésticos", money(appliances_total), "neutral"),
+                ("Placas + aerotermia", money(energy_total), "neutral"),
+            ],
+        )
     st.divider()
     st.subheader("Pagado y pendiente por partida")
     reform_by_partida = reform_status.groupby("partida", as_index=False).agg(
