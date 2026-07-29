@@ -159,6 +159,30 @@ with st.sidebar:
         value=float(data["savings"].get("member_b_extra_pay_contribution", 3000.0)),
         step=100.0,
     )
+    st.subheader("Vacaciones")
+    data["savings"]["vacation_amount"] = st.slider(
+        "Dinero destinado a vacaciones",
+        min_value=0,
+        max_value=20000,
+        value=int(data["savings"].get("vacation_amount", 0.0)),
+        step=100,
+        format="%d €",
+    )
+    vacation_months = pd.date_range(
+        start=pd.Timestamp(data["period"]["start"]),
+        periods=int(data["period"]["months"]),
+        freq="MS",
+    )
+    vacation_options = [month.strftime("%Y-%m-%d") for month in vacation_months]
+    stored_vacation_month = str(data["savings"].get("vacation_month", vacation_options[-1]))
+    vacation_index = vacation_options.index(stored_vacation_month) if stored_vacation_month in vacation_options else len(vacation_options) - 1
+    selected_vacation_month = st.selectbox(
+        "Mes de las vacaciones",
+        options=vacation_options,
+        index=vacation_index,
+        format_func=lambda value: pd.Timestamp(value).strftime("%m/%Y"),
+    )
+    data["savings"]["vacation_month"] = selected_vacation_month
     data["savings"]["initial_balance"] = (
         data["savings"]["base_balance"]
         + data["savings"]["member_a_extra"]
@@ -347,6 +371,12 @@ with tabs[0]:
         f"Capital disponible en julio: {money(result['initial_savings'])}. "
         "La línea comienza después de aplicar el gasto estimado de la reforma en agosto."
     )
+    if float(data["savings"].get("vacation_amount", 0.0)) > 0:
+        st.info(
+            "Vacaciones: se descontarán "
+            f"{money(float(data['savings']['vacation_amount']))} en "
+            f"{pd.Timestamp(data['savings']['vacation_month']).strftime('%m/%Y')}."
+        )
 
     st.subheader("Evolución de las deudas")
     st.altair_chart(
