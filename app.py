@@ -587,7 +587,7 @@ def upgrade_reform_records(records: list[dict]) -> tuple[list[dict], bool]:
     return detailed, True
 
 
-tabs = st.tabs(["Resumen familiar", "Gastos comunes", "Financiación", "Reforma", member_b_label, member_a_label])
+tabs = st.tabs(["Resumen familiar", "Gastos comunes", "Financiación e Hipoteca", "Reforma", member_b_label, member_a_label])
 
 with tabs[5]:
     if person_key == "member_a":
