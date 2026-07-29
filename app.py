@@ -94,9 +94,56 @@ else:
 st.markdown(
     """
     <style>
+      :root {
+        --ra-gold: #B48A2C;
+        --ra-gold-dark: #896719;
+        --ra-gold-soft: #F7F0DF;
+        --ra-ink: #28241D;
+      }
+      .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
+        background: #FFFFFF;
+        color: var(--ra-ink);
+      }
       .block-container {padding-top: 1.3rem; padding-bottom: 3rem;}
-      [data-testid="stMetric"] {background: color-mix(in srgb, var(--secondary-background-color) 88%, transparent); padding: 1rem; border-radius: .75rem;}
-      h1, h2, h3 {letter-spacing: -0.02em;}
+      [data-testid="stSidebar"] {background: #FCF9F2; border-right: 1px solid #E6D4A7;}
+      [data-testid="stSidebar"] > div {background: #FCF9F2;}
+      h1, h2, h3 {letter-spacing: -0.02em; color: var(--ra-ink);}
+      h1 {color: var(--ra-gold-dark);}
+      [data-testid="stMetric"] {
+        background: linear-gradient(145deg, #FFFFFF 35%, #FBF6EA 100%);
+        padding: 1rem;
+        border: 1px solid #D8BA73;
+        border-top: 4px solid var(--ra-gold);
+        border-radius: .85rem;
+        box-shadow: 0 5px 18px rgba(137, 103, 25, .08);
+      }
+      [data-testid="stMetricLabel"] {color: var(--ra-gold-dark); font-weight: 700;}
+      [data-testid="stMetricValue"] {color: var(--ra-ink);}
+      .stTabs [data-baseweb="tab-list"] {gap: .35rem; border-bottom: 1px solid #E6D4A7;}
+      .stTabs [data-baseweb="tab"] {color: #64583F; border-radius: .55rem .55rem 0 0; padding-left: 1rem; padding-right: 1rem;}
+      .stTabs [aria-selected="true"] {background: var(--ra-gold-soft); color: var(--ra-gold-dark); font-weight: 700;}
+      .stTabs [data-baseweb="tab-highlight"] {background-color: var(--ra-gold);}
+      .stButton > button[kind="primary"], .stFormSubmitButton > button {
+        background: var(--ra-gold);
+        border-color: var(--ra-gold);
+        color: #FFFFFF;
+      }
+      .stButton > button[kind="primary"]:hover, .stFormSubmitButton > button:hover {
+        background: var(--ra-gold-dark);
+        border-color: var(--ra-gold-dark);
+        color: #FFFFFF;
+      }
+      .stButton > button:not([kind="primary"]), .stDownloadButton > button {
+        border-color: #C9A955;
+        color: var(--ra-gold-dark);
+      }
+      [data-baseweb="input"] > div, [data-baseweb="select"] > div, [data-baseweb="textarea"] > div {
+        background: #FFFFFF;
+        border-color: #DCC587;
+      }
+      [data-testid="stDataFrame"] {border: 1px solid #E2CC94; border-radius: .65rem; overflow: hidden;}
+      hr {border-color: #E6D4A7;}
+      a {color: var(--ra-gold-dark);}
     </style>
     """,
     unsafe_allow_html=True,
