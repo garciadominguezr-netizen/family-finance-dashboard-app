@@ -279,6 +279,7 @@ st.markdown(
       .finance-card.positive .finance-value {color:var(--ra-positive);}
       .finance-card.negative .finance-value {color:var(--ra-negative);}
       .finance-breakdown {display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:4px;}
+      .finance-breakdown.items-4 {grid-template-columns:repeat(4,1fr);}
       .finance-breakdown-item {padding-right:12px;border-right:1px solid rgba(180,138,44,.24);}
       .finance-breakdown-item:last-child {border-right:0;padding-right:0;}
       .finance-breakdown-name {font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:#8A7450;font-weight:700;margin-bottom:4px;}
@@ -307,7 +308,7 @@ def financial_breakdown_metric(container, label: str, items: list[tuple[str, str
     )
     container.markdown(
         f'<div class="finance-card"><div class="finance-label">{escape(label)}</div>'
-        f'<div class="finance-breakdown">{parts}</div></div>',
+        f'<div class="finance-breakdown items-{len(items)}">{parts}</div></div>',
         unsafe_allow_html=True,
     )
 
@@ -883,13 +884,11 @@ with tabs[3]:
             ],
         )
         st.write("")
-        r1, r2, r3 = st.columns([1, 1, 2])
-        financial_metric(r1, "Coste total de toda la reforma", money(result["reform_total"]))
-        financial_metric(r2, "Reforma y casa", money(house_reform_total))
         financial_breakdown_metric(
-            r3,
-            "Cocina · Electrodomésticos · Energía",
+            st.container(),
+            "Distribución del coste de la reforma",
             [
+                ("Reforma y casa", money(house_reform_total), "neutral"),
                 ("Cocina", money(kitchen_total), "neutral"),
                 ("Electrodomésticos", money(appliances_total), "neutral"),
                 ("Placas + aerotermia", money(energy_total), "neutral"),
