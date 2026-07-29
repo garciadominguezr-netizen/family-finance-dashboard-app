@@ -278,6 +278,13 @@ st.markdown(
       .finance-card .finance-value {font-size:1.72rem; line-height:1.15; font-weight:720; letter-spacing:-.035em; color:var(--ra-ink);}
       .finance-card.positive .finance-value {color:var(--ra-positive);}
       .finance-card.negative .finance-value {color:var(--ra-negative);}
+      .finance-breakdown {display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:4px;}
+      .finance-breakdown-item {padding-right:12px;border-right:1px solid rgba(180,138,44,.24);}
+      .finance-breakdown-item:last-child {border-right:0;padding-right:0;}
+      .finance-breakdown-name {font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:#8A7450;font-weight:700;margin-bottom:4px;}
+      .finance-breakdown-value {font-size:1.48rem;line-height:1.15;font-weight:730;letter-spacing:-.035em;color:var(--ra-ink);}
+      .finance-breakdown-value.positive {color:var(--ra-positive);}
+      .finance-breakdown-value.negative {color:var(--ra-negative);}
       [data-testid="stVegaLiteChart"] {background:linear-gradient(145deg,rgba(255,255,255,.94),rgba(255,252,245,.84));backdrop-filter:blur(14px);border:1px solid #D8BA73;border-radius:20px;padding:16px 18px 10px;box-shadow:0 14px 38px rgba(89,69,28,.09),inset 0 1px 0 rgba(255,255,255,.9);overflow:hidden;}
     </style>
     """,
@@ -288,6 +295,19 @@ def financial_metric(container, label: str, value: str, tone: str = "neutral") -
     container.markdown(
         f'<div class="finance-card {tone}"><div class="finance-label">{escape(label)}</div>'
         f'<div class="finance-value">{escape(value)}</div></div>',
+        unsafe_allow_html=True,
+    )
+
+
+def financial_breakdown_metric(container, label: str, items: list[tuple[str, str, str]]) -> None:
+    parts = "".join(
+        f'<div class="finance-breakdown-item"><div class="finance-breakdown-name">{escape(name)}</div>'
+        f'<div class="finance-breakdown-value {tone}">{escape(value)}</div></div>'
+        for name, value, tone in items
+    )
+    container.markdown(
+        f'<div class="finance-card"><div class="finance-label">{escape(label)}</div>'
+        f'<div class="finance-breakdown">{parts}</div></div>',
         unsafe_allow_html=True,
     )
 
@@ -842,12 +862,28 @@ with tabs[3]:
     reform_vat_total = float(reform_status["vat_amount"].sum())
     reform_paid_total = float(reform_status["paid_amount"].sum())
     reform_pending_total = float(reform_status["pending_amount"].sum())
+    reform_partida = reform_status["partida"].astype(str).str.casefold()
+    energy_mask = reform_partida.str.contains("placas|aerotermia", regex=True)
+    appliances_mask = reform_partida.str.contains("electrodomésticos|electrodomesticos", regex=True)
+    energy_total = float(reform_status.loc[energy_mask, "total_amount"].sum())
+    appliances_total = float(reform_status.loc[appliances_mask, "total_amount"].sum())
+    house_reform_total = float(reform_status.loc[~energy_mask & ~appliances_mask, "total_amount"].sum())
     with reform_metrics:
+        financial_breakdown_metric(
+            st.container(),
+            "Estado económico de la reforma",
+            [
+                ("Pagado", money(reform_paid_total), "positive"),
+                ("Pendiente", money(reform_pending_total), "negative"),
+                ("Total", money(result["reform_total"]), "neutral"),
+            ],
+        )
+        st.write("")
         r1, r2, r3, r4 = st.columns(4)
-        financial_metric(r1, "Coste real · IVA incluido", money(result["reform_total"]), "negative")
-        financial_metric(r2, "Pagado", money(reform_paid_total), "positive")
-        financial_metric(r3, "Pendiente", money(reform_pending_total), "negative" if reform_pending_total > 0 else "positive")
-        financial_metric(r4, "IVA acumulado", money(reform_vat_total))
+        financial_metric(r1, "Coste total de toda la reforma", money(result["reform_total"]))
+        financial_metric(r2, "Reforma y casa", money(house_reform_total))
+        financial_metric(r3, "Placas y aerotermia", money(energy_total))
+        financial_metric(r4, "Electrodomésticos", money(appliances_total))
     st.divider()
     st.subheader("Pagado y pendiente por partida")
     reform_by_partida = reform_status.groupby("partida", as_index=False).agg(
