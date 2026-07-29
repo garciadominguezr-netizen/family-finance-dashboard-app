@@ -763,12 +763,16 @@ def current_family_status(frame: pd.DataFrame) -> tuple[dict[str, float], str]:
 with tabs[0]:
     current_status, current_status_label = current_family_status(family)
     st.caption(current_status_label)
-    s1, s2 = st.columns(2)
+    total_credit_debt = float(current_status["john_deere_balance"]) + float(current_status["family_loan_balance"])
+    reform_pending_summary = sum(
+        float(item.get("pending_amount", max(0.0, float(item.get("total_amount", 0.0)) - float(item.get("paid_amount", 0.0)))))
+        for item in data["reform"]
+    )
+    s1, s2, s3, s4 = st.columns(4)
     financial_metric(s1, "Ahorro familiar", money(float(current_status["savings_balance"])), "positive")
-    financial_metric(s2, "Gasto estimado reforma", money(float(result["reform_total"])))
-    d1, d2 = st.columns(2)
-    financial_metric(d1, "Deuda John Deere", money(float(current_status["john_deere_balance"])), "negative")
-    financial_metric(d2, "Préstamo familiar", money(float(current_status["family_loan_balance"])), "negative")
+    financial_metric(s2, "Deudas créditos totales", money(total_credit_debt), "negative")
+    financial_metric(s3, "Hipoteca pendiente", money(float(data["debt"]["mortgage_current_balance"])), "negative")
+    financial_metric(s4, "Reforma pendiente", money(reform_pending_summary), "negative")
 
     st.subheader("Evolución del ahorro familiar tras pagar la reforma")
     savings_history = family[["month", "savings_balance"]].dropna().copy()
