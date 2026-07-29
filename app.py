@@ -289,6 +289,15 @@ def person_editor(key: str, label: str) -> None:
     person["extra_amount"] = c2.number_input("Importe paga extra", min_value=0.0, value=float(person["extra_amount"]), step=50.0, key=f"extra_{key}")
     person["extra_months"][0] = c3.number_input("Mes de extra 1", min_value=1, max_value=12, value=int(person["extra_months"][0]), key=f"extra_m1_{key}")
     person["extra_months"][1] = c4.number_input("Mes de extra 2", min_value=1, max_value=12, value=int(person["extra_months"][1]), key=f"extra_m2_{key}")
+    person["january_raise_pct"] = st.number_input(
+        "Subida salarial anual en enero (%)",
+        min_value=0.0,
+        max_value=30.0,
+        value=float(person.get("january_raise_pct", 0.0)),
+        step=0.5,
+        key=f"january_raise_{key}",
+        help="Se aplica a partir de enero y se acumula cada año de la simulación.",
+    )
     edited = st.data_editor(
         pd.DataFrame(person["expenses"]),
         use_container_width=True,
@@ -512,6 +521,23 @@ def personal_dashboard(frame: pd.DataFrame, key: str, label: str) -> None:
             ],
         ).properties(height=330, title=f"Gastos personales de {label}")
         st.altair_chart(donut, use_container_width=True)
+    st.subheader("Neto personal disponible mes a mes")
+    cashflow_chart = (
+        alt.Chart(frame)
+        .mark_line(point=alt.OverlayMarkDef(filled=True, size=75), strokeWidth=3, color="#B48A2C")
+        .encode(
+            x=alt.X("month:T", title=None, axis=alt.Axis(format="%b %Y")),
+            y=alt.Y("net:Q", title="Neto disponible (€)", scale=alt.Scale(zero=False)),
+            tooltip=[
+                alt.Tooltip("month:T", title="Mes", format="%b %Y"),
+                alt.Tooltip("ordinary_salary:Q", title="Nómina ordinaria", format=",.2f"),
+                alt.Tooltip("extra_personal_remainder:Q", title="Extra personal", format=",.2f"),
+                alt.Tooltip("net:Q", title="Neto disponible", format=",.2f"),
+            ],
+        )
+        .properties(height=340)
+    )
+    st.altair_chart(cashflow_chart, use_container_width=True)
 
 
 with tabs[1]:
