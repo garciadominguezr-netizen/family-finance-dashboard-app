@@ -7,9 +7,10 @@ from html import escape
 import altair as alt
 import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
 
 from model import calculate, export_excel, money, normalize_records
-from supabase_store import connect, create_household, join_household, load_data, save_data, sign_in, sign_out, sign_up
+from supabase_store import connect, create_household, join_household, load_data, open_recovery_session, request_password_reset, save_data, sign_in, sign_out, sign_up, update_password
 
 
 st.set_page_config(page_title="Control financiero familiar", page_icon="🏠", layout="wide")
@@ -31,6 +32,63 @@ except (KeyError, FileNotFoundError):
 if "supabase" not in st.session_state:
     st.session_state.supabase = connect(supabase_url, supabase_key)
 client = st.session_state.supabase
+APP_URL = "https://garcia-bouayach-family-finances.streamlit.app/"
+
+components.html(
+    """
+    <script>
+      const hash = window.parent.location.hash;
+      if (hash && hash.includes("type=recovery")) {
+        const values = new URLSearchParams(hash.slice(1));
+        const access = values.get("access_token");
+        const refresh = values.get("refresh_token");
+        if (access && refresh) {
+          const target = new URL(window.parent.location.href);
+          target.hash = "";
+          target.searchParams.set("recovery", "1");
+          target.searchParams.set("access_token", access);
+          target.searchParams.set("refresh_token", refresh);
+          window.parent.location.replace(target.toString());
+        }
+      }
+    </script>
+    """,
+    height=0,
+)
+
+if st.query_params.get("recovery") == "1" and not st.session_state.get("password_recovery"):
+    access_token = st.query_params.get("access_token", "")
+    refresh_token = st.query_params.get("refresh_token", "")
+    if access_token and refresh_token:
+        try:
+            open_recovery_session(client, access_token, refresh_token)
+            st.session_state.password_recovery = True
+            st.query_params.clear()
+            st.rerun()
+        except Exception:
+            st.query_params.clear()
+            st.error("El enlace de recuperación ha caducado o ya se ha utilizado. Solicita uno nuevo.")
+
+if st.session_state.get("password_recovery"):
+    st.subheader("Crear una contraseña nueva")
+    with st.form("new_password_form"):
+        new_password = st.text_input("Nueva contraseña", type="password")
+        repeated_password = st.text_input("Repite la contraseña", type="password")
+        password_submitted = st.form_submit_button("Guardar contraseña nueva", type="primary", use_container_width=True)
+    if password_submitted:
+        if len(new_password) < 8:
+            st.error("La contraseña debe tener al menos 8 caracteres.")
+        elif new_password != repeated_password:
+            st.error("Las dos contraseñas no coinciden.")
+        else:
+            try:
+                update_password(client, new_password)
+                sign_out(client)
+                st.session_state.pop("password_recovery", None)
+                st.success("Contraseña actualizada. Ya puedes iniciar sesión desde el móvil y el Mac.")
+            except Exception as exc:
+                st.error(f"No ha sido posible actualizar la contraseña: {exc}")
+    st.stop()
 
 st.markdown(
     f"""
@@ -87,14 +145,20 @@ st.markdown(
 )
 if "signed_email" not in st.session_state:
     st.subheader("Acceso privado")
-    mode = st.radio("", ["Iniciar sesión", "Crear mi contraseña"], horizontal=True, label_visibility="collapsed")
+    mode = st.radio("", ["Iniciar sesión", "Crear mi contraseña", "Recuperar contraseña"], horizontal=True, label_visibility="collapsed")
     with st.form("auth_form"):
         email = st.text_input("Correo electrónico").strip().lower()
-        password = st.text_input("Contraseña", type="password")
+        password = st.text_input("Contraseña", type="password", disabled=mode == "Recuperar contraseña")
         submitted = st.form_submit_button(mode, type="primary", use_container_width=True)
     if submitted:
         if email not in AUTHORIZED_USERS:
             st.error("Este correo no está autorizado para esta familia.")
+        elif mode == "Recuperar contraseña":
+            try:
+                request_password_reset(client, email, APP_URL)
+                st.success("Te hemos enviado un enlace. Revisa también la carpeta de correo no deseado.")
+            except Exception as exc:
+                st.error(f"No ha sido posible enviar el enlace de recuperación: {exc}")
         elif len(password) < 8:
             st.error("La contraseña debe tener al menos 8 caracteres.")
         else:
