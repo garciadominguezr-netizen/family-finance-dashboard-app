@@ -346,21 +346,21 @@ def time_chart(frame: pd.DataFrame, fields: list[str], names: dict[str, str], co
     )
 
 
-tabs = st.tabs(["Resumen familiar", member_a_label, member_b_label, "Gastos comunes", "Reforma y deudas"])
+tabs = st.tabs(["Resumen familiar", "Gastos comunes", "Reforma y deudas", member_b_label, member_a_label])
 
-with tabs[1]:
+with tabs[4]:
     if person_key == "member_a":
         person_editor("member_a", member_a_label)
     else:
         st.info(f"Los gastos personales de {member_a_label} son privados. Solo se incorpora su aportación neta al cálculo familiar.")
 
-with tabs[2]:
+with tabs[3]:
     if person_key == "member_b":
         person_editor("member_b", member_b_label)
     else:
         st.info(f"Los gastos personales de {member_b_label} son privados. Solo se incorpora su aportación neta al cálculo familiar.")
 
-with tabs[3]:
+with tabs[1]:
     st.subheader("Gastos comunes")
     common_df = pd.DataFrame(data["common_expenses"])
     common_edited = st.data_editor(
@@ -379,7 +379,7 @@ with tabs[3]:
     data["common_expenses"] = normalize_records(common_edited.to_dict("records"), ["monthly", "member_a_share"])
     st.info("Los 65 € por persona para IBI, ecotasa y seguro de hogar están incluidos dentro del ahorro familiar.")
 
-with tabs[4]:
+with tabs[2]:
     st.subheader("Presupuesto de reforma")
     reform_edited = st.data_editor(
         pd.DataFrame(data["reform"]), use_container_width=True, num_rows="dynamic", hide_index=True,
@@ -541,17 +541,17 @@ def personal_dashboard(frame: pd.DataFrame, key: str, label: str) -> None:
     st.altair_chart(cashflow_chart, use_container_width=True)
 
 
-with tabs[1]:
+with tabs[4]:
     if person_key == "member_a":
         st.divider()
         personal_dashboard(member_a, "member_a", member_a_label)
 
-with tabs[2]:
+with tabs[3]:
     if person_key == "member_b":
         st.divider()
         personal_dashboard(member_b, "member_b", member_b_label)
 
-with tabs[3]:
+with tabs[1]:
     st.divider()
     c1, c2, c3 = st.columns(3)
     c1.metric("Total común mensual", money(result["common_total"]))
@@ -564,7 +564,7 @@ with tabs[3]:
     ).properties(height=360)
     st.altair_chart(category_chart, use_container_width=True)
 
-with tabs[4]:
+with tabs[2]:
     st.divider()
     c1, c2, c3 = st.columns(3)
     c1.metric("Coste de reforma", money(result["reform_total"]))
