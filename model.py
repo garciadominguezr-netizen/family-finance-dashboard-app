@@ -46,15 +46,25 @@ def calculate(data: dict[str, Any]) -> dict[str, Any]:
         rows = []
         for index, month in enumerate(periods):
             income = float(person["salary"])
+            extra_income = 0.0
+            extra_to_savings = 0.0
             if month.month in [int(x) for x in person["extra_months"]]:
-                income += float(person["extra_amount"])
+                extra_income = float(person["extra_amount"])
+                income += extra_income
+                configured_contribution = float(
+                    data["savings"].get(f"{key}_extra_pay_contribution", 0.0)
+                )
+                extra_to_savings = min(extra_income, configured_contribution)
             if data["scenario"]["include_march_bonus"] and month.month == 3:
                 income += float(person.get("march_bonus", 0.0))
             reform_adjustment = reform_gap / 2 if index == 0 else 0.0
-            net = income - common_share - reform_adjustment - personal_total
+            net = income - common_share - reform_adjustment - personal_total - extra_to_savings
             rows.append({
                 "month": month,
                 "income": income,
+                "extra_income": extra_income,
+                "extra_to_savings": extra_to_savings,
+                "extra_personal_remainder": extra_income - extra_to_savings,
                 "common": common_share,
                 "reform_adjustment": reform_adjustment,
                 "personal": personal_total,
@@ -74,6 +84,7 @@ def calculate(data: dict[str, Any]) -> dict[str, Any]:
         "member_a_personal": member_a["personal"],
         "member_b_personal": member_b["personal"],
         "cash_flow": member_a["net"] + member_b["net"],
+        "extra_to_savings": member_a["extra_to_savings"] + member_b["extra_to_savings"],
     })
 
     family_payment = float(data["debt"].get("family_monthly_repayment", 0.0))
@@ -97,12 +108,15 @@ def calculate(data: dict[str, Any]) -> dict[str, Any]:
     monthly_rate = (1 + float(savings_config["annual_interest"])) ** (1 / 12) - 1
     savings_balance = initial_savings
     savings_values = []
-    for index, _ in enumerate(periods):
-        savings_balance = savings_balance * (1 + monthly_rate) + savings_monthly
+    savings_contributions = []
+    for index, extra_contribution in enumerate(family["extra_to_savings"]):
+        total_contribution = savings_monthly + float(extra_contribution)
+        savings_balance = savings_balance * (1 + monthly_rate) + total_contribution
         if index == 0:
             savings_balance -= reform_total
         savings_values.append(savings_balance)
-    family["savings_contribution"] = savings_monthly
+        savings_contributions.append(total_contribution)
+    family["savings_contribution"] = savings_contributions
     family["savings_balance"] = savings_values
 
     jd_principal = float(data["debt"]["john_deere_principal"])
