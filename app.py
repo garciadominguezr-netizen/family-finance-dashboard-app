@@ -521,19 +521,19 @@ def personal_dashboard(frame: pd.DataFrame, key: str, label: str) -> None:
             ],
         ).properties(height=330, title=f"Gastos personales de {label}")
         st.altair_chart(donut, use_container_width=True)
-    st.subheader("Neto personal disponible acumulado")
+    st.subheader("Capacidad de ahorro")
     cashflow_chart = (
         alt.Chart(frame)
         .mark_line(point=alt.OverlayMarkDef(filled=True, size=75), strokeWidth=3, color="#B48A2C")
         .encode(
             x=alt.X("month:T", title=None, axis=alt.Axis(format="%b %Y")),
-            y=alt.Y("cumulative_net:Q", title="Neto acumulado (€)", scale=alt.Scale(zero=True)),
+            y=alt.Y("cumulative_net:Q", title="Capacidad de ahorro acumulada (€)", scale=alt.Scale(zero=True)),
             tooltip=[
                 alt.Tooltip("month:T", title="Mes", format="%b %Y"),
                 alt.Tooltip("ordinary_salary:Q", title="Nómina ordinaria", format=",.2f"),
                 alt.Tooltip("extra_personal_remainder:Q", title="Extra personal", format=",.2f"),
                 alt.Tooltip("net:Q", title="Neto del mes", format=",.2f"),
-                alt.Tooltip("cumulative_net:Q", title="Neto acumulado", format=",.2f"),
+                alt.Tooltip("cumulative_net:Q", title="Capacidad de ahorro", format=",.2f"),
             ],
         )
         .properties(height=340)
