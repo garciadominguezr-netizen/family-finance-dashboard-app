@@ -832,10 +832,15 @@ with tabs[4]:
 
 with tabs[1]:
     with common_metrics:
-        c1, c2, c3 = st.columns(3)
-        financial_metric(c1, "Total común mensual", money(result["common_total"]))
-        financial_metric(c2, f"Parte de {member_a_label}", money(result["member_a_common"]))
-        financial_metric(c3, f"Parte de {member_b_label}", money(result["member_b_common"]))
+        financial_breakdown_metric(
+            st.container(),
+            "Resumen mensual de gastos comunes",
+            [
+                ("Total común", money(result["common_total"]), "neutral"),
+                (f"Parte de {member_a_label}", money(result["member_a_common"]), "neutral"),
+                (f"Parte de {member_b_label}", money(result["member_b_common"]), "neutral"),
+            ],
+        )
     st.divider()
     common_chart_data = result["common"].copy()
     category_order = (
