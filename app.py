@@ -768,11 +768,16 @@ with tabs[0]:
         float(item.get("pending_amount", max(0.0, float(item.get("total_amount", 0.0)) - float(item.get("paid_amount", 0.0)))))
         for item in data["reform"]
     )
-    s1, s2, s3, s4 = st.columns(4)
-    financial_metric(s1, "Ahorro familiar", money(float(current_status["savings_balance"])), "positive")
-    financial_metric(s2, "Deudas créditos totales", money(total_credit_debt), "negative")
-    financial_metric(s3, "Hipoteca pendiente", money(float(data["debt"]["mortgage_current_balance"])), "negative")
-    financial_metric(s4, "Reforma pendiente", money(reform_pending_summary), "negative")
+    financial_breakdown_metric(
+        st.container(),
+        "Situación financiera familiar",
+        [
+            ("Ahorro familiar", money(float(current_status["savings_balance"])), "positive"),
+            ("Deudas créditos totales", money(total_credit_debt), "negative"),
+            ("Hipoteca pendiente", money(float(data["debt"]["mortgage_current_balance"])), "negative"),
+            ("Reforma pendiente", money(reform_pending_summary), "negative"),
+        ],
+    )
 
     st.subheader("Evolución del ahorro familiar tras pagar la reforma")
     savings_history = family[["month", "savings_balance"]].dropna().copy()
