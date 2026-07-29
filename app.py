@@ -32,7 +32,7 @@ except (KeyError, FileNotFoundError):
 if "supabase" not in st.session_state:
     st.session_state.supabase = connect(supabase_url, supabase_key)
 client = st.session_state.supabase
-APP_URL = "https://garcia-bouayach-family-finances.streamlit.app/"
+APP_URL = "https://garcia-bouayach-family-finances.streamlit.app/"  # Recovery callback
 
 components.html(
     """
