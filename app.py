@@ -503,25 +503,14 @@ def personal_dashboard(frame: pd.DataFrame, key: str, label: str) -> None:
     total_personal = float(expenses["monthly"].sum()) if not expenses.empty else 0.0
     if total_personal > 0:
         chart_data = expenses.groupby("concept", as_index=False)["monthly"].sum().sort_values("monthly", ascending=False)
-        salary = float(data[key]["salary"])
-        chart_data["salary_pct"] = chart_data["monthly"] / salary * 100 if salary > 0 else 0.0
-        chart_data["salary_pct_label"] = chart_data["salary_pct"].map(lambda value: f"{value:.1f}%".replace(".", ","))
-        donut_base = alt.Chart(chart_data).encode(
-            theta=alt.Theta("monthly:Q"),
+        donut = alt.Chart(chart_data).mark_arc(innerRadius=70).encode(
+            theta=alt.Theta("monthly:Q"), color=alt.Color("concept:N", title=None),
             order=alt.Order("monthly:Q", sort="descending"),
-        )
-        donut_segments = donut_base.mark_arc(innerRadius=70).encode(
-            color=alt.Color("concept:N", title=None),
             tooltip=[
                 alt.Tooltip("concept:N", title="Concepto"),
                 alt.Tooltip("monthly:Q", title="Mensual", format=",.2f"),
-                alt.Tooltip("salary_pct:Q", title="% de la nómina", format=".1f"),
             ],
-        )
-        donut_percentages = donut_base.mark_text(radius=105, size=12, fontWeight=700, color="#28241D").encode(
-            text=alt.Text("salary_pct_label:N"),
-        )
-        donut = (donut_segments + donut_percentages).properties(height=330, title=f"Gastos personales de {label}")
+        ).properties(height=330, title=f"Gastos personales de {label}")
         st.altair_chart(donut, use_container_width=True)
 
 
