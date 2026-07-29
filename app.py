@@ -118,15 +118,6 @@ with st.sidebar:
         value=bool(data["scenario"]["include_march_bonus"]),
         help="Activa los importes potenciales introducidos por ambos miembros.",
     )
-    data[person_key]["march_bonus"] = st.number_input(f"Bonus marzo · {display_name}", min_value=0.0, value=float(data[person_key]["march_bonus"]), step=100.0)
-    data["savings"]["annual_interest"] = st.number_input(
-        "Interés anual de la cuenta",
-        min_value=0.0,
-        max_value=0.20,
-        value=float(data["savings"]["annual_interest"]),
-        step=0.001,
-        format="%.3f",
-    )
     st.subheader("Ahorro inicial")
     data["savings"]["base_balance"] = st.number_input(
         "Saldo base familiar · julio 2026",
