@@ -509,9 +509,6 @@ def personal_dashboard(frame: pd.DataFrame, key: str, label: str) -> None:
             tooltip=[alt.Tooltip("concept:N", title="Concepto"), alt.Tooltip("monthly:Q", title="Mensual", format=",.2f")]
         ).properties(height=330, title=f"Gastos personales de {label}")
         st.altair_chart(donut, use_container_width=True)
-    display = frame.copy()
-    display["month"] = display["month"].dt.strftime("%b %Y")
-    st.dataframe(display.rename(columns={"month":"Mes","income":"Ingresos","extra_income":"Paga extra","extra_to_savings":"Extra al ahorro","extra_personal_remainder":"Extra personal","common":"Comunes","reform_adjustment":"Reforma","personal":"Personales","net":"Neto mensual","cumulative_net":"Neto acumulado"}), use_container_width=True, hide_index=True)
 
 
 with tabs[1]:
