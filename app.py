@@ -209,6 +209,17 @@ with st.sidebar:
 
 def person_editor(key: str, label: str) -> None:
     person = data[key]
+    common_monthly = sum(
+        float(item["monthly"])
+        * (float(item.get("member_a_share", 0.5)) if key == "member_a" else 1 - float(item.get("member_a_share", 0.5)))
+        for item in data["common_expenses"]
+    )
+    personal_monthly = sum(float(item["monthly"]) for item in person["expenses"])
+    ordinary_net = float(person["salary"]) - common_monthly - personal_monthly
+    k1, k2, k3 = st.columns(3)
+    k1.metric("Nómina mensual", money(float(person["salary"])))
+    k2.metric("Gasto común mensual", money(common_monthly))
+    k3.metric("Neto restante mensual", money(ordinary_net))
     st.subheader(f"Parámetros de {label}")
     c1, c2, c3, c4 = st.columns(4)
     person["salary"] = c1.number_input("Nómina ordinaria", min_value=0.0, value=float(person["salary"]), step=50.0, key=f"salary_{key}")
