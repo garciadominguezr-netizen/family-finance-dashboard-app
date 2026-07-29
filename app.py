@@ -41,10 +41,11 @@ st.markdown(
       [data-testid="stSidebar"] {border-right:1px solid #E6D4A7;}
       h1,h2,h3,p,label,[data-testid="stCaptionContainer"] {color:var(--ra-ink);}
       h1 {color:var(--ra-gold-dark);}
-      [data-baseweb="input"] > div, [data-baseweb="select"] > div, [data-baseweb="textarea"] > div {
-        background:#FFFFFF;border-color:#DCC587;color:var(--ra-ink);
+      [data-baseweb="input"], [data-baseweb="input"] > div, [data-baseweb="base-input"],
+      [data-baseweb="select"] > div, [data-baseweb="textarea"], [data-baseweb="textarea"] > div {
+        background:#FFFFFF !important;border-color:#DCC587;color:var(--ra-ink);
       }
-      input, textarea {color:var(--ra-ink) !important;}
+      input, textarea {background:#FFFFFF !important;color:var(--ra-ink) !important;}
       [data-testid="stForm"] {background:#FFFFFF;border-color:#E2CC94;}
       .stButton > button[kind="primary"], .stFormSubmitButton > button {
         background:var(--ra-gold);border-color:var(--ra-gold);color:#FFFFFF;
