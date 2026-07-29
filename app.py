@@ -457,11 +457,16 @@ def person_editor(key: str, label: str) -> None:
     personal_monthly = sum(float(item["monthly"]) for item in person["expenses"])
     ordinary_net = float(person["salary"]) - common_monthly - personal_monthly
     with metrics:
-        k1, k2, k3, k4 = st.columns(4)
-        financial_metric(k1, "Nómina mensual", money(float(person["salary"])))
-        financial_metric(k2, "Gasto común mensual", money(common_monthly))
-        financial_metric(k3, "Gastos personales mensuales", money(personal_monthly))
-        financial_metric(k4, "Neto restante mensual", money(ordinary_net), "positive" if ordinary_net >= 0 else "negative")
+        financial_breakdown_metric(
+            st.container(),
+            f"Resumen mensual de {label}",
+            [
+                ("Nómina mensual", money(float(person["salary"])), "positive"),
+                ("Gasto común mensual", money(common_monthly), "negative"),
+                ("Gastos personales", money(personal_monthly), "negative"),
+                ("Neto restante", money(ordinary_net), "positive" if ordinary_net >= 0 else "negative"),
+            ],
+        )
 
 
 def time_chart(frame: pd.DataFrame, fields: list[str], names: dict[str, str], colors: list[str] | None = None):
