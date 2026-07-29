@@ -104,7 +104,11 @@ def calculate(data: dict[str, Any]) -> dict[str, Any]:
     base_savings = float(savings_config.get("base_balance", savings_config.get("initial_balance", 0.0)))
     member_a_extra = float(savings_config.get("member_a_extra", 0.0))
     member_b_extra = float(savings_config.get("member_b_extra", 0.0))
-    initial_savings = base_savings + member_a_extra + member_b_extra
+    legacy_initial_savings = base_savings + member_a_extra + member_b_extra
+    initial_savings = float(savings_config.get("actual_savings_amount", legacy_initial_savings))
+    savings_checkpoint = pd.Timestamp(
+        savings_config.get("actual_savings_month", periods[0] - pd.offsets.MonthBegin(1))
+    ).replace(day=1)
     monthly_rate = (1 + float(savings_config["annual_interest"])) ** (1 / 12) - 1
     savings_balance = initial_savings
     savings_values = []
@@ -113,9 +117,19 @@ def calculate(data: dict[str, Any]) -> dict[str, Any]:
     vacation_month = pd.Timestamp(savings_config.get("vacation_month", periods[-1])).strftime("%Y-%m")
     vacation_outflows = []
     for index, (month, extra_contribution) in enumerate(zip(periods, family["extra_to_savings"])):
+        if month < savings_checkpoint:
+            savings_values.append(float("nan"))
+            savings_contributions.append(0.0)
+            vacation_outflows.append(0.0)
+            continue
+        if month == savings_checkpoint:
+            savings_values.append(savings_balance)
+            savings_contributions.append(0.0)
+            vacation_outflows.append(0.0)
+            continue
         total_contribution = savings_monthly + float(extra_contribution)
         savings_balance = savings_balance * (1 + monthly_rate) + total_contribution
-        if index == 0:
+        if index == 0 and savings_checkpoint < month:
             savings_balance -= reform_total
         vacation_outflow = vacation_amount if month.strftime("%Y-%m") == vacation_month else 0.0
         savings_balance -= vacation_outflow
@@ -150,6 +164,7 @@ def calculate(data: dict[str, Any]) -> dict[str, Any]:
         "member_b_common": member_b_common,
         "savings_monthly": savings_monthly,
         "initial_savings": initial_savings,
+        "savings_checkpoint_month": savings_checkpoint,
         "reform_total": reform_total,
         "itemized_reform_total": itemized_reform_total,
         "funding_total": funding_total,
