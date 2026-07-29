@@ -352,11 +352,9 @@ def current_family_status(frame: pd.DataFrame) -> tuple[dict[str, float], str]:
 with tabs[0]:
     current_status, current_status_label = current_family_status(family)
     st.caption(current_status_label)
-    s1, s2, s3, s4 = st.columns(4)
+    s1, s2 = st.columns(2)
     s1.metric("Ahorro familiar", money(float(current_status["savings_balance"])))
-    s2.metric(f"Aportado Extra {member_a_label}", money(float(data["savings"].get("member_a_extra", 0.0))))
-    s3.metric(f"Aportado Extra {member_b_label}", money(float(data["savings"].get("member_b_extra", 0.0))))
-    s4.metric("Gasto estimado reforma", money(float(result["reform_total"])))
+    s2.metric("Gasto estimado reforma", money(float(result["reform_total"])))
     d1, d2 = st.columns(2)
     d1.metric("Deuda John Deere", money(float(current_status["john_deere_balance"])))
     d2.metric("Préstamo familiar", money(float(current_status["family_loan_balance"])))
@@ -474,6 +472,10 @@ with tabs[4]:
     c1.metric("Coste de reforma", money(result["reform_total"]))
     c2.metric("Financiación prevista", money(result["funding_total"]))
     c3.metric("Diferencia de financiación", money(result["reform_gap"]))
+    st.subheader("Aportaciones extraordinarias para la reforma")
+    e1, e2 = st.columns(2)
+    e1.metric(f"Aportado Extra {member_a_label}", money(float(data["savings"].get("member_a_extra", 0.0))))
+    e2.metric(f"Aportado Extra {member_b_label}", money(float(data["savings"].get("member_b_extra", 0.0))))
     st.altair_chart(time_chart(family, ["john_deere_balance", "family_loan_balance"], {"john_deere_balance":"John Deere", "family_loan_balance":"Préstamo familiar"}), use_container_width=True)
 
 
