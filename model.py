@@ -109,14 +109,21 @@ def calculate(data: dict[str, Any]) -> dict[str, Any]:
     savings_balance = initial_savings
     savings_values = []
     savings_contributions = []
-    for index, extra_contribution in enumerate(family["extra_to_savings"]):
+    vacation_amount = float(savings_config.get("vacation_amount", 0.0))
+    vacation_month = pd.Timestamp(savings_config.get("vacation_month", periods[-1])).strftime("%Y-%m")
+    vacation_outflows = []
+    for index, (month, extra_contribution) in enumerate(zip(periods, family["extra_to_savings"])):
         total_contribution = savings_monthly + float(extra_contribution)
         savings_balance = savings_balance * (1 + monthly_rate) + total_contribution
         if index == 0:
             savings_balance -= reform_total
+        vacation_outflow = vacation_amount if month.strftime("%Y-%m") == vacation_month else 0.0
+        savings_balance -= vacation_outflow
         savings_values.append(savings_balance)
         savings_contributions.append(total_contribution)
+        vacation_outflows.append(vacation_outflow)
     family["savings_contribution"] = savings_contributions
+    family["vacation_outflow"] = vacation_outflows
     family["savings_balance"] = savings_values
 
     jd_principal = float(data["debt"]["john_deere_principal"])
