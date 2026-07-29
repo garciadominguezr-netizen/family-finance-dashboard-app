@@ -501,31 +501,13 @@ with tabs[0]:
 def personal_dashboard(frame: pd.DataFrame, key: str, label: str) -> None:
     expenses = pd.DataFrame(data[key]["expenses"])
     total_personal = float(expenses["monthly"].sum()) if not expenses.empty else 0.0
-    c1, c2, c3, c4, c5 = st.columns(5)
-    c1.metric("Ingresos del periodo", money(float(frame["income"].sum())))
-    c2.metric("Gasto común", money(float(frame["common"].sum() + frame["reform_adjustment"].sum())))
-    c3.metric("Gasto personal", money(float(frame["personal"].sum())))
-    c4.metric("Pagas extra al ahorro", money(float(frame["extra_to_savings"].sum())))
-    c5.metric("Neto acumulado", money(float(frame["cumulative_net"].iloc[-1])))
-    left, right = st.columns([1.1, 1])
-    with left:
-        st.altair_chart(
-            time_chart(
-                frame,
-                ["net", "extra_personal_remainder"],
-                {"net": "Neto mensual", "extra_personal_remainder": "Parte personal de la paga extra"},
-                ["#2E86DE", "#F2A541"],
-            ),
-            use_container_width=True,
-        )
-    with right:
-        if total_personal > 0:
-            chart_data = expenses.groupby("concept", as_index=False)["monthly"].sum()
-            donut = alt.Chart(chart_data).mark_arc(innerRadius=70).encode(
-                theta=alt.Theta("monthly:Q"), color=alt.Color("concept:N", title=None),
-                tooltip=[alt.Tooltip("concept:N", title="Concepto"), alt.Tooltip("monthly:Q", title="Mensual", format=",.2f")]
-            ).properties(height=330, title=f"Gastos personales de {label}")
-            st.altair_chart(donut, use_container_width=True)
+    if total_personal > 0:
+        chart_data = expenses.groupby("concept", as_index=False)["monthly"].sum()
+        donut = alt.Chart(chart_data).mark_arc(innerRadius=70).encode(
+            theta=alt.Theta("monthly:Q"), color=alt.Color("concept:N", title=None),
+            tooltip=[alt.Tooltip("concept:N", title="Concepto"), alt.Tooltip("monthly:Q", title="Mensual", format=",.2f")]
+        ).properties(height=330, title=f"Gastos personales de {label}")
+        st.altair_chart(donut, use_container_width=True)
     display = frame.copy()
     display["month"] = display["month"].dt.strftime("%b %Y")
     st.dataframe(display.rename(columns={"month":"Mes","income":"Ingresos","extra_income":"Paga extra","extra_to_savings":"Extra al ahorro","extra_personal_remainder":"Extra personal","common":"Comunes","reform_adjustment":"Reforma","personal":"Personales","net":"Neto mensual","cumulative_net":"Neto acumulado"}), use_container_width=True, hide_index=True)
