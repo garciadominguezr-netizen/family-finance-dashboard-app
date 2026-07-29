@@ -622,10 +622,23 @@ with tabs[1]:
         financial_metric(c2, f"Parte de {member_a_label}", money(result["member_a_common"]))
         financial_metric(c3, f"Parte de {member_b_label}", money(result["member_b_common"]))
     st.divider()
-    category = result["common"].groupby("category", as_index=False)["monthly"].sum()
-    category_chart = alt.Chart(category).mark_bar().encode(
-        x=alt.X("monthly:Q", title="€ al mes"), y=alt.Y("category:N", title=None, sort="-x"),
-        tooltip=[alt.Tooltip("category:N", title="Categoría"), alt.Tooltip("monthly:Q", title="Mensual", format=",.2f")]
+    common_chart_data = result["common"].copy()
+    category_order = (
+        common_chart_data.groupby("category")["monthly"]
+        .sum()
+        .sort_values(ascending=False)
+        .index.tolist()
+    )
+    category_chart = alt.Chart(common_chart_data).mark_bar().encode(
+        x=alt.X("monthly:Q", title="€ al mes", stack="zero"),
+        y=alt.Y("category:N", title=None, sort=category_order),
+        color=alt.Color("concept:N", title="Concepto", scale=alt.Scale(scheme="tableau20")),
+        order=alt.Order("monthly:Q", sort="descending"),
+        tooltip=[
+            alt.Tooltip("category:N", title="Categoría"),
+            alt.Tooltip("concept:N", title="Concepto"),
+            alt.Tooltip("monthly:Q", title="Mensual", format=",.2f"),
+        ],
     ).properties(height=360)
     st.altair_chart(category_chart, use_container_width=True)
 
