@@ -118,11 +118,26 @@ with st.sidebar:
         value=bool(data["scenario"]["include_march_bonus"]),
         help="Activa los importes potenciales introducidos por ambos miembros.",
     )
-    st.subheader("Ahorro inicial")
-    data["savings"]["base_balance"] = st.number_input(
-        "Saldo base familiar · julio 2026",
+    st.subheader("Punto de partida del ahorro")
+    savings_periods = pd.date_range(
+        start=pd.Timestamp(data["period"]["start"]),
+        periods=int(data["period"]["months"]),
+        freq="MS",
+    )
+    savings_checkpoint_months = [savings_periods[0] - pd.offsets.MonthBegin(1), *savings_periods]
+    savings_checkpoint_options = [month.strftime("%Y-%m-%d") for month in savings_checkpoint_months]
+    stored_checkpoint_month = str(data["savings"].get("actual_savings_month", savings_checkpoint_options[0]))
+    checkpoint_index = savings_checkpoint_options.index(stored_checkpoint_month) if stored_checkpoint_month in savings_checkpoint_options else 0
+    data["savings"]["actual_savings_month"] = st.selectbox(
+        "Mes del ahorro real",
+        options=savings_checkpoint_options,
+        index=checkpoint_index,
+        format_func=lambda value: pd.Timestamp(value).strftime("%m/%Y"),
+    )
+    data["savings"]["actual_savings_amount"] = st.number_input(
+        "Ahorro real en ese mes",
         min_value=0.0,
-        value=float(data["savings"].get("base_balance", data["savings"].get("initial_balance", 0.0))),
+        value=float(data["savings"].get("actual_savings_amount", data["savings"].get("initial_balance", 0.0))),
         step=100.0,
     )
     data["savings"]["member_a_extra"] = st.number_input(
@@ -174,11 +189,6 @@ with st.sidebar:
         format_func=lambda value: pd.Timestamp(value).strftime("%m/%Y"),
     )
     data["savings"]["vacation_month"] = selected_vacation_month
-    data["savings"]["initial_balance"] = (
-        data["savings"]["base_balance"]
-        + data["savings"]["member_a_extra"]
-        + data["savings"]["member_b_extra"]
-    )
     data["debt"]["family_monthly_repayment"] = st.number_input(
         "Devolución mensual préstamo familiar",
         min_value=0.0,
@@ -317,8 +327,14 @@ def current_family_status(frame: pd.DataFrame) -> tuple[dict[str, float], str]:
             "family_loan_balance": float(data["debt"]["family_loan"]),
         }, f"Situación actual · {today.strftime('%d/%m/%Y')} · antes del inicio de la proyección"
 
-    eligible = frame.loc[frame["month"] <= current_month]
-    row = eligible.iloc[-1] if not eligible.empty else frame.iloc[0]
+    eligible = frame.loc[(frame["month"] <= current_month) & frame["savings_balance"].notna()]
+    if eligible.empty:
+        return {
+            "savings_balance": float(result["initial_savings"]),
+            "john_deere_balance": float(data["debt"]["john_deere_principal"]),
+            "family_loan_balance": float(data["debt"]["family_loan"]),
+        }, f"Saldo real indicado para {pd.Timestamp(result['savings_checkpoint_month']).strftime('%m/%Y')}"
+    row = eligible.iloc[-1]
     status_month = row["month"].strftime("%m/%Y")
     return row.to_dict(), f"Situación actual estimada · mes {status_month}"
 
@@ -336,7 +352,7 @@ with tabs[0]:
     d2.metric("Préstamo familiar", money(float(current_status["family_loan_balance"])))
 
     st.subheader("Evolución del ahorro familiar tras pagar la reforma")
-    savings_history = family[["month", "savings_balance"]].copy()
+    savings_history = family[["month", "savings_balance"]].dropna().copy()
     savings_min = min(-1000.0, float(savings_history["savings_balance"].min()) * 1.15)
     savings_max = max(1000.0, float(savings_history["savings_balance"].max()) * 1.10)
     savings_line = alt.Chart(savings_history).mark_line(point=True, strokeWidth=2.8, color="#22A06B").encode(
@@ -359,8 +375,9 @@ with tabs[0]:
     ).encode(y="zero:Q")
     st.altair_chart(savings_line + negative_points + zero_line, use_container_width=True)
     st.caption(
-        f"Capital disponible en julio: {money(result['initial_savings'])}. "
-        "La línea comienza después de aplicar el gasto estimado de la reforma en agosto."
+        f"Saldo real de partida: {money(result['initial_savings'])} en "
+        f"{pd.Timestamp(result['savings_checkpoint_month']).strftime('%m/%Y')}. "
+        "La simulación aplica únicamente los movimientos posteriores a ese mes."
     )
     if float(data["savings"].get("vacation_amount", 0.0)) > 0:
         st.info(
