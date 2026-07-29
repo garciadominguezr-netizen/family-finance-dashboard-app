@@ -32,6 +32,31 @@ if "supabase" not in st.session_state:
 client = st.session_state.supabase
 
 st.title(FAMILY_NAME)
+st.markdown(
+    """
+    <style>
+      :root {--ra-gold:#B48A2C;--ra-gold-dark:#896719;--ra-gold-soft:#F7F0DF;--ra-ink:#28241D;}
+      .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {background:#FFFFFF;color:var(--ra-ink);}
+      [data-testid="stSidebar"], [data-testid="stSidebar"] > div {background:#FCF9F2;}
+      [data-testid="stSidebar"] {border-right:1px solid #E6D4A7;}
+      h1,h2,h3,p,label,[data-testid="stCaptionContainer"] {color:var(--ra-ink);}
+      h1 {color:var(--ra-gold-dark);}
+      [data-baseweb="input"] > div, [data-baseweb="select"] > div, [data-baseweb="textarea"] > div {
+        background:#FFFFFF;border-color:#DCC587;color:var(--ra-ink);
+      }
+      input, textarea {color:var(--ra-ink) !important;}
+      [data-testid="stForm"] {background:#FFFFFF;border-color:#E2CC94;}
+      .stButton > button[kind="primary"], .stFormSubmitButton > button {
+        background:var(--ra-gold);border-color:var(--ra-gold);color:#FFFFFF;
+      }
+      .stButton > button[kind="primary"]:hover, .stFormSubmitButton > button:hover {
+        background:var(--ra-gold-dark);border-color:var(--ra-gold-dark);color:#FFFFFF;
+      }
+      [data-baseweb="radio"] div[aria-checked="true"] {background-color:var(--ra-gold);}
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 if "signed_email" not in st.session_state:
     st.subheader("Acceso privado")
     mode = st.radio("", ["Iniciar sesión", "Crear mi contraseña"], horizontal=True, label_visibility="collapsed")
