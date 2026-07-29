@@ -503,10 +503,16 @@ def personal_dashboard(frame: pd.DataFrame, key: str, label: str) -> None:
     total_personal = float(expenses["monthly"].sum()) if not expenses.empty else 0.0
     if total_personal > 0:
         chart_data = expenses.groupby("concept", as_index=False)["monthly"].sum()
-        donut = alt.Chart(chart_data).mark_arc(innerRadius=70).encode(
-            theta=alt.Theta("monthly:Q"), color=alt.Color("concept:N", title=None),
+        donut_base = alt.Chart(chart_data).encode(theta=alt.Theta("monthly:Q", stack=True))
+        donut_segments = donut_base.mark_arc(innerRadius=70, outerRadius=145).encode(
+            color=alt.Color("concept:N", title=None),
             tooltip=[alt.Tooltip("concept:N", title="Concepto"), alt.Tooltip("monthly:Q", title="Mensual", format=",.2f")]
-        ).properties(height=330, title=f"Gastos personales de {label}")
+        )
+        donut_labels = donut_base.mark_text(radius=108, size=12, fontWeight=600).encode(
+            text=alt.Text("concept:N"),
+            color=alt.value("#28241D"),
+        )
+        donut = (donut_segments + donut_labels).properties(height=350, title=f"Gastos personales de {label}")
         st.altair_chart(donut, use_container_width=True)
     display = frame.copy()
     display["month"] = display["month"].dt.strftime("%b %Y")
