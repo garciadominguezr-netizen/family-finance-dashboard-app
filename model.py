@@ -27,10 +27,8 @@ def mortgage_schedule(debt: dict[str, Any]) -> pd.DataFrame:
     current = float(debt.get("mortgage_current_balance", initial))
     total_months = int(debt.get("mortgage_term_months", 360))
     actual_payments = int(debt.get("mortgage_actual_payments", 2))
-    first_months = int(debt.get("mortgage_first_fixed_months", 6))
-    second_months = int(debt.get("mortgage_second_fixed_months", 54))
+    fixed_months = int(debt.get("mortgage_fixed_months", 96))
     first_rate = float(debt.get("mortgage_first_fixed_rate", 1.4))
-    second_rate = float(debt.get("mortgage_second_fixed_rate", 2.3))
     variable_rate = max(
         0.0,
         float(debt.get("mortgage_euribor_assumption", 2.0))
@@ -65,13 +63,11 @@ def mortgage_schedule(debt: dict[str, Any]) -> pd.DataFrame:
     balance = initial
     payment = first_payment
     for number, month in enumerate(payment_dates, 1):
-        if number <= first_months:
-            rate, phase = first_rate, "Fijo inicial"
-        elif number <= first_months + second_months:
-            rate, phase = second_rate, "Fijo segundo tramo"
+        if number <= fixed_months:
+            rate, phase = first_rate, "Fijo bonificado"
         else:
             rate, phase = variable_rate, "Variable estimado"
-        if number in (first_months + 1, first_months + second_months + 1):
+        if number == fixed_months + 1:
             payment = annuity(balance, rate, total_months - number + 1)
         opening = balance
         interest = opening * rate / 1200
