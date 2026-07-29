@@ -387,7 +387,8 @@ with tabs[0]:
     st.caption(
         f"Saldo real de partida: {money(result['initial_savings'])} en "
         f"{pd.Timestamp(result['savings_checkpoint_month']).strftime('%m/%Y')}. "
-        "La simulación aplica únicamente los movimientos posteriores a ese mes."
+        "La simulación aplica únicamente los movimientos posteriores a ese mes. "
+        "Cada punto muestra el saldo al cierre mensual; la reforma se paga al final de agosto de 2026."
     )
     if float(data["savings"].get("vacation_amount", 0.0)) > 0:
         st.info(
