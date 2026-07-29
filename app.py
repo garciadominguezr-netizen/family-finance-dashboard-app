@@ -681,8 +681,9 @@ with tabs[3]:
         except Exception as exc:
             st.error(f"No se ha podido guardar el histórico: {exc}")
 with tabs[2]:
-    financing_debt_metrics = st.container()
     st.subheader("Financiación")
+    financing_summary = st.container()
+    credits_chart_slot = st.container()
     mortgage_defaults = {
         "mortgage_initial_principal": 460000.0,
         "mortgage_current_balance": 457943.42,
@@ -701,6 +702,7 @@ with tabs[2]:
     data["debt"]["mortgage_fixed_months"] = 96
     data["debt"]["mortgage_first_fixed_rate"] = 1.4
     st.subheader("Hipoteca")
+    mortgage_summary = st.container()
     h1, h2, h3, h4 = st.columns(4)
     data["debt"]["mortgage_initial_principal"] = h1.number_input(
         "Capital inicial", min_value=0.0, value=float(data["debt"]["mortgage_initial_principal"]), step=1000.0
@@ -727,6 +729,7 @@ with tabs[2]:
         "después Euríbor 12 meses + 1,35 puntos, "
         "con revisión semestral. En Gastos comunes se mantienen 1.600 € mensuales."
     )
+    mortgage_chart_slot = st.container()
 
 
 result = calculate(data)
@@ -971,27 +974,16 @@ with tabs[3]:
     st.caption(f"Base acumulada: {money(reform_base_total)} · IVA acumulado: {money(reform_vat_total)}")
 
 with tabs[2]:
-    with financing_debt_metrics:
+    with financing_summary:
         jd_debt = float(data["debt"]["john_deere_principal"])
         family_debt = float(data["debt"]["family_loan"])
         financial_breakdown_metric(
             st.container(),
-            "Créditos familiares",
+            "Créditos solicitados",
             [
                 ("John Deere", money(jd_debt), "negative"),
                 ("Préstamo familiar", money(family_debt), "negative"),
                 ("Total", money(jd_debt + family_debt), "negative"),
-            ],
-        )
-        st.write("")
-        mortgage_amortized = float(data["debt"]["mortgage_initial_principal"]) - float(data["debt"]["mortgage_current_balance"])
-        financial_breakdown_metric(
-            st.container(),
-            "Situación hipotecaria actual",
-            [
-                ("Capital inicial", money(float(data["debt"]["mortgage_initial_principal"])), "neutral"),
-                ("Capital amortizado", money(mortgage_amortized), "positive"),
-                ("Capital pendiente", money(float(data["debt"]["mortgage_current_balance"])), "negative"),
             ],
         )
         st.write("")
@@ -1002,39 +994,51 @@ with tabs[2]:
             "Aportaciones extraordinarias para la reforma",
             [
                 (f"Aportado Extra {member_a_label}", money(member_a_reform_extra), "positive"),
-                (f"Aportado Extra {member_b_label}", money(member_b_reform_extra), "positive"),
+                (f"Aportado Extra {member_b_label}", money(member_b_reform_extra), "positive" if member_b_reform_extra > 0 else "neutral"),
                 ("Total aportado", money(member_a_reform_extra + member_b_reform_extra), "positive"),
             ],
         )
-    st.divider()
-    st.altair_chart(time_chart(family, ["john_deere_balance", "family_loan_balance"], {"john_deere_balance":"John Deere", "family_loan_balance":"Préstamo familiar"}), use_container_width=True)
-    st.subheader("Evolución prevista de la hipoteca")
-    mortgage_chart = alt.Chart(mortgage).mark_line(
-        color="#B48A2C", strokeWidth=3, point=alt.OverlayMarkDef(filled=True, size=20)
-    ).encode(
-        x=alt.X("month:T", title=None, axis=alt.Axis(format="%Y")),
-        y=alt.Y("balance:Q", title="Capital pendiente (€)", scale=alt.Scale(zero=True)),
-        tooltip=[
-            alt.Tooltip("month:T", title="Mes", format="%b %Y"),
-            alt.Tooltip("phase:N", title="Tramo"),
-            alt.Tooltip("annual_rate:Q", title="Tipo nominal", format=".2f"),
-            alt.Tooltip("payment:Q", title="Cuota", format=",.2f"),
-            alt.Tooltip("interest:Q", title="Intereses", format=",.2f"),
-            alt.Tooltip("principal:Q", title="Capital amortizado", format=",.2f"),
-            alt.Tooltip("balance:Q", title="Deuda pendiente", format=",.2f"),
-        ],
-    ).properties(height=420)
-    st.altair_chart(mortgage_chart, use_container_width=True)
-    projected_variable_rate = max(
-        0.0,
-        float(data["debt"]["mortgage_euribor_assumption"])
-        + float(data["debt"]["mortgage_variable_spread"]),
-    )
-    st.caption(
-        "Proyección por sistema de amortización francés, anclada al saldo real indicado. "
-        f"Para el tramo variable se supone un tipo constante del {projected_variable_rate:.2f} % "
-        "(Euríbor estimado + 1,35). Las cuotas futuras se recalculan cuando cambia el tipo."
-    )
+    with credits_chart_slot:
+        st.altair_chart(time_chart(family, ["john_deere_balance", "family_loan_balance"], {"john_deere_balance":"John Deere", "family_loan_balance":"Préstamo familiar"}), use_container_width=True)
+    with mortgage_summary:
+        mortgage_amortized = float(data["debt"]["mortgage_initial_principal"]) - float(data["debt"]["mortgage_current_balance"])
+        financial_breakdown_metric(
+            st.container(),
+            "Situación hipotecaria actual",
+            [
+                ("Capital inicial", money(float(data["debt"]["mortgage_initial_principal"])), "neutral"),
+                ("Capital amortizado", money(mortgage_amortized), "positive"),
+                ("Capital pendiente", money(float(data["debt"]["mortgage_current_balance"])), "negative"),
+            ],
+        )
+    with mortgage_chart_slot:
+        st.subheader("Evolución prevista de la hipoteca")
+        mortgage_chart = alt.Chart(mortgage).mark_line(
+            color="#B48A2C", strokeWidth=3, point=alt.OverlayMarkDef(filled=True, size=20)
+        ).encode(
+            x=alt.X("month:T", title=None, axis=alt.Axis(format="%Y")),
+            y=alt.Y("balance:Q", title="Capital pendiente (€)", scale=alt.Scale(zero=True)),
+            tooltip=[
+                alt.Tooltip("month:T", title="Mes", format="%b %Y"),
+                alt.Tooltip("phase:N", title="Tramo"),
+                alt.Tooltip("annual_rate:Q", title="Tipo nominal", format=".2f"),
+                alt.Tooltip("payment:Q", title="Cuota", format=",.2f"),
+                alt.Tooltip("interest:Q", title="Intereses", format=",.2f"),
+                alt.Tooltip("principal:Q", title="Capital amortizado", format=",.2f"),
+                alt.Tooltip("balance:Q", title="Deuda pendiente", format=",.2f"),
+            ],
+        ).properties(height=420)
+        st.altair_chart(mortgage_chart, use_container_width=True)
+        projected_variable_rate = max(
+            0.0,
+            float(data["debt"]["mortgage_euribor_assumption"])
+            + float(data["debt"]["mortgage_variable_spread"]),
+        )
+        st.caption(
+            "Proyección por sistema de amortización francés, anclada al saldo real indicado. "
+            f"Para el tramo variable se supone un tipo constante del {projected_variable_rate:.2f} % "
+            "(Euríbor estimado + 1,35). Las cuotas futuras se recalculan cuando cambia el tipo."
+        )
 
 
 with st.sidebar:
