@@ -462,6 +462,65 @@ def time_chart(frame: pd.DataFrame, fields: list[str], names: dict[str, str], co
     )
 
 
+PHOTO_REFORM_ROWS = [
+    ("Cocina", "Reserva", 500.0, 0.0, "Pagado"),
+    ("Cocina", "Fabricación", 7960.0, 0.0, "Pagado"),
+    ("Cocina", "Pago 2 · Entrega muebles", 2530.0, 0.0, "No pagado"),
+    ("Cocina", "Pago 3 · Montaje", 2000.0, 0.0, "No pagado"),
+    ("Reforma", "1.ª factura reforma", 17100.64, 3591.13, "Pagado"),
+    ("Reforma", "2.ª factura reforma", 11130.40, 2337.38, "Pagado"),
+    ("Reforma", "3.er pago efectivo", 11130.40, 0.0, "No pagado"),
+    ("Reforma", "Baños", 9098.04, 0.0, "No pagado"),
+    ("Reforma", "4.º pago", 13543.636, 2844.16356, "No pagado"),
+    ("Reforma", "5.º pago efectivo", 16719.54, 0.0, "No pagado"),
+    ("Materiales", "Tarima", 5460.77, 1146.76, "Pagado"),
+    ("Materiales", "Peldaños tarima", 1653.30, 347.19, "Pagado"),
+    ("Materiales", "Cocina y aseo", 1719.16, 361.02, "Pagado"),
+    ("Materiales", "Suelo/pared y pared baños planta superior", 1664.98, 349.65, "Pagado"),
+    ("Materiales", "Suelo baño planta superior", 700.0, 147.0, "No pagado"),
+    ("Placas solares", "1.er pago placas", 2576.81, 541.1301, "Pagado"),
+    ("Placas solares", "2.º pago placas", 2576.81, 541.1301, "No pagado"),
+    ("Aerotermia", "Aerotermia", 11576.50, 2431.065, "No pagado"),
+]
+
+
+def detailed_reform_row(partida: str, description: str, base: float, vat: float, status: str) -> dict:
+    total = float(base) + float(vat)
+    return {
+        "partida": partida,
+        "description": description,
+        "base_amount": float(base),
+        "vat_amount": float(vat),
+        "with_vat": float(vat) > 0,
+        "total_amount": total,
+        "payment_status": status,
+        "paid_amount": total if status == "Pagado" else 0.0,
+        "payment_date": "",
+    }
+
+
+def upgrade_reform_records(records: list[dict]) -> tuple[list[dict], bool]:
+    if records and all("partida" in row for row in records):
+        return records, False
+    detailed = [detailed_reform_row(*row) for row in PHOTO_REFORM_ROWS]
+    replaced_aggregates = {"cocina", "reforma", "placas solares", "aerotermia pendiente", "aerotermia"}
+    appliance_terms = {"frigorífico", "placa vitrocerámica", "instalación vitrocerámica", "horno", "electrodomésticos"}
+    for old in records:
+        concept = str(old.get("concept", "")).strip()
+        if not concept or concept.casefold() in replaced_aggregates:
+            continue
+        folded = concept.casefold()
+        if folded in appliance_terms:
+            partida = "Electrodomésticos"
+        elif "material" in folded or "suelo" in folded:
+            partida = "Materiales"
+        else:
+            partida = "Equipamiento casa"
+        old_status = "Pagado" if old.get("status") == "Pagado" else "No pagado"
+        detailed.append(detailed_reform_row(partida, concept, float(old.get("amount", 0.0)), 0.0, old_status))
+    return detailed, True
+
+
 tabs = st.tabs(["Resumen familiar", "Gastos comunes", "Financiación", "Reforma", member_b_label, member_a_label])
 
 with tabs[5]:
@@ -498,49 +557,63 @@ with tabs[1]:
     st.info("Los 65 € por persona para IBI, ecotasa y seguro de hogar están incluidos dentro del ahorro familiar.")
 
 with tabs[3]:
-    st.subheader("Presupuesto de reforma")
+    data["reform"], reform_was_upgraded = upgrade_reform_records(data["reform"])
+    if reform_was_upgraded:
+        data["savings"]["reform_estimate_adjustment"] = 0.0
+    reform_metrics = st.container()
+    st.subheader("Histórico detallado de la reforma")
+    st.caption("Edita importes, IVA, estado y fecha. Los totales y cantidades pendientes se recalculan automáticamente.")
+    reform_df = pd.DataFrame(data["reform"])
+    for numeric_column in ("base_amount", "vat_amount", "total_amount", "paid_amount"):
+        reform_df[numeric_column] = pd.to_numeric(reform_df.get(numeric_column, 0.0), errors="coerce").fillna(0.0)
+    reform_df["total_amount"] = reform_df["base_amount"] + reform_df["vat_amount"]
+    reform_df["pending_amount"] = (reform_df["total_amount"] - reform_df["paid_amount"]).clip(lower=0.0)
     reform_edited = st.data_editor(
-        pd.DataFrame(data["reform"]), use_container_width=True, num_rows="dynamic", hide_index=True,
+        reform_df, use_container_width=True, num_rows="dynamic", hide_index=True,
         column_config={
-            "concept": st.column_config.TextColumn("Partida", required=True),
-            "status": st.column_config.SelectboxColumn("Estado", options=["Presupuesto", "Estimación", "Pagado"]),
-            "amount": st.column_config.NumberColumn("Importe", min_value=0.0, step=50.0, format="%.2f €"),
-        }, key="reform_editor"
+            "id": None,
+            "partida": st.column_config.TextColumn("Partida", required=True),
+            "description": st.column_config.TextColumn("Concepto / pago", required=True),
+            "base_amount": st.column_config.NumberColumn("Base", min_value=0.0, step=50.0, format="%.2f €"),
+            "with_vat": st.column_config.CheckboxColumn("Con IVA"),
+            "vat_amount": st.column_config.NumberColumn("IVA", min_value=0.0, step=10.0, format="%.2f €"),
+            "total_amount": st.column_config.NumberColumn("Total real", format="%.2f €"),
+            "payment_status": st.column_config.SelectboxColumn("Estado", options=["Pagado", "Parcial", "No pagado"], required=True),
+            "paid_amount": st.column_config.NumberColumn("Pagado", min_value=0.0, step=50.0, format="%.2f €"),
+            "pending_amount": st.column_config.NumberColumn("Pendiente", format="%.2f €"),
+            "payment_date": st.column_config.TextColumn("Fecha de pago", help="Formato recomendado: AAAA-MM-DD"),
+        },
+        disabled=["total_amount", "pending_amount"],
+        column_order=["partida", "description", "base_amount", "with_vat", "vat_amount", "total_amount", "payment_status", "paid_amount", "pending_amount", "payment_date"],
+        key="reform_editor",
     )
-    data["reform"] = normalize_records(reform_edited.to_dict("records"), ["amount"])
-    reform_chart_data = (
-        pd.DataFrame(data["reform"])
-        .groupby("concept", as_index=False)["amount"]
-        .sum()
-        .sort_values("amount", ascending=False)
+    clean_reform = normalize_records(
+        reform_edited.to_dict("records"),
+        ["base_amount", "vat_amount", "total_amount", "paid_amount", "pending_amount"],
     )
-    if not reform_chart_data.empty:
-        reform_chart = (
-            alt.Chart(reform_chart_data)
-            .mark_bar(color="#B48A2C", cornerRadiusEnd=5)
-            .encode(
-                x=alt.X("amount:Q", title="Importe (€)"),
-                y=alt.Y("concept:N", title=None, sort="-x"),
-                tooltip=[
-                    alt.Tooltip("concept:N", title="Concepto"),
-                    alt.Tooltip("amount:Q", title="Importe", format=",.2f"),
-                ],
-            )
-            .properties(title="Coste por concepto", height=max(340, len(reform_chart_data) * 28))
-        )
-        st.altair_chart(reform_chart, use_container_width=True)
-    st.caption(
-        "El estimado general incluye además un ajuste no desglosado de "
-        f"{money(float(data['savings'].get('reform_estimate_adjustment', 0.0)))}. "
-        "Cada nueva partida se suma automáticamente al total."
-    )
-    if st.button("Guardar presupuesto de reforma", type="primary", use_container_width=True):
+    for row in clean_reform:
+        row["partida"] = str(row.get("partida", "Sin clasificar"))
+        row["description"] = str(row.get("description", "Nuevo concepto"))
+        row["payment_date"] = "" if pd.isna(row.get("payment_date")) else str(row.get("payment_date", ""))
+        row["total_amount"] = row["base_amount"] + row["vat_amount"]
+        status = row.get("payment_status") or "No pagado"
+        row["payment_status"] = status
+        if status == "Pagado":
+            row["paid_amount"] = row["total_amount"]
+        elif status == "No pagado":
+            row["paid_amount"] = 0.0
+        else:
+            row["paid_amount"] = min(row["total_amount"], max(0.0, row["paid_amount"]))
+        row["pending_amount"] = max(0.0, row["total_amount"] - row["paid_amount"])
+        row["with_vat"] = bool(row.get("with_vat", row["vat_amount"] > 0))
+    data["reform"] = clean_reform
+    if st.button("Guardar histórico de reforma", type="primary", use_container_width=True):
         try:
             save_data(client, data, db_context, person_key)
             st.session_state.finance_data = deepcopy(data)
-            st.success("Presupuesto guardado y verificado en la base de datos.")
+            st.success("Histórico de reforma guardado y verificado en la base de datos.")
         except Exception as exc:
-            st.error(f"No se ha podido guardar el presupuesto: {exc}")
+            st.error(f"No se ha podido guardar el histórico: {exc}")
 with tabs[2]:
     st.subheader("Financiación")
     funding_edited = st.data_editor(
@@ -719,8 +792,55 @@ with tabs[1]:
     st.altair_chart(category_chart, use_container_width=True)
 
 with tabs[3]:
+    reform_status = pd.DataFrame(data["reform"])
+    reform_base_total = float(reform_status["base_amount"].sum())
+    reform_vat_total = float(reform_status["vat_amount"].sum())
+    reform_paid_total = float(reform_status["paid_amount"].sum())
+    reform_pending_total = float(reform_status["pending_amount"].sum())
+    with reform_metrics:
+        r1, r2, r3, r4 = st.columns(4)
+        financial_metric(r1, "Coste real · IVA incluido", money(result["reform_total"]), "negative")
+        financial_metric(r2, "Pagado", money(reform_paid_total), "positive")
+        financial_metric(r3, "Pendiente", money(reform_pending_total), "negative" if reform_pending_total > 0 else "positive")
+        financial_metric(r4, "IVA acumulado", money(reform_vat_total))
     st.divider()
-    financial_metric(st.container(), "Coste total de reforma", money(result["reform_total"]), "negative")
+    st.subheader("Pagado y pendiente por partida")
+    reform_by_partida = reform_status.groupby("partida", as_index=False).agg(
+        Pagado=("paid_amount", "sum"),
+        Pendiente=("pending_amount", "sum"),
+    )
+    reform_payment_chart = alt.Chart(
+        reform_by_partida.melt("partida", var_name="situacion", value_name="importe")
+    ).mark_bar(cornerRadiusEnd=4).encode(
+        x=alt.X("importe:Q", title="Importe (€)", stack="zero"),
+        y=alt.Y("partida:N", title=None, sort="-x"),
+        color=alt.Color(
+            "situacion:N",
+            title=None,
+            scale=alt.Scale(domain=["Pagado", "Pendiente"], range=["#168A57", "#C63D3D"]),
+        ),
+        tooltip=[
+            alt.Tooltip("partida:N", title="Partida"),
+            alt.Tooltip("situacion:N", title="Situación"),
+            alt.Tooltip("importe:Q", title="Importe", format=",.2f"),
+        ],
+    ).properties(height=max(340, len(reform_by_partida) * 42))
+    st.altair_chart(reform_payment_chart, use_container_width=True)
+    st.subheader("Conceptos de mayor coste")
+    expensive_concepts = reform_status.nlargest(12, "total_amount")
+    expensive_chart = alt.Chart(expensive_concepts).mark_bar(color="#B48A2C", cornerRadiusEnd=5).encode(
+        x=alt.X("total_amount:Q", title="Coste real (€)"),
+        y=alt.Y("description:N", title=None, sort="-x"),
+        tooltip=[
+            alt.Tooltip("partida:N", title="Partida"),
+            alt.Tooltip("description:N", title="Concepto"),
+            alt.Tooltip("base_amount:Q", title="Base", format=",.2f"),
+            alt.Tooltip("vat_amount:Q", title="IVA", format=",.2f"),
+            alt.Tooltip("total_amount:Q", title="Total", format=",.2f"),
+        ],
+    ).properties(height=max(380, len(expensive_concepts) * 32))
+    st.altair_chart(expensive_chart, use_container_width=True)
+    st.caption(f"Base acumulada: {money(reform_base_total)} · IVA acumulado: {money(reform_vat_total)}")
 
 with tabs[2]:
     st.divider()
