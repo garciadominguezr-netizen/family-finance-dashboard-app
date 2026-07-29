@@ -22,6 +22,83 @@ def normalize_records(records: list[dict[str, Any]], numeric: list[str]) -> list
     return clean
 
 
+def mortgage_schedule(debt: dict[str, Any]) -> pd.DataFrame:
+    initial = float(debt.get("mortgage_initial_principal", 460000.0))
+    current = float(debt.get("mortgage_current_balance", initial))
+    total_months = int(debt.get("mortgage_term_months", 360))
+    actual_payments = int(debt.get("mortgage_actual_payments", 2))
+    first_months = int(debt.get("mortgage_first_fixed_months", 6))
+    second_months = int(debt.get("mortgage_second_fixed_months", 54))
+    first_rate = float(debt.get("mortgage_first_fixed_rate", 1.4))
+    second_rate = float(debt.get("mortgage_second_fixed_rate", 2.3))
+    variable_rate = max(
+        0.0,
+        float(debt.get("mortgage_euribor_assumption", 2.0))
+        + float(debt.get("mortgage_variable_spread", 1.35)),
+    )
+    first_payment = float(debt.get("mortgage_payment_first_period", 1565.84))
+    start = pd.Timestamp(debt.get("mortgage_start", "2026-05-13")).replace(day=1)
+    payment_dates = pd.date_range(
+        pd.Timestamp(debt.get("mortgage_first_payment", "2026-06-01")).replace(day=1),
+        periods=total_months,
+        freq="MS",
+    )
+
+    def annuity(balance: float, annual_rate: float, periods_left: int) -> float:
+        monthly_rate = annual_rate / 1200
+        if periods_left <= 0:
+            return balance
+        if monthly_rate == 0:
+            return balance / periods_left
+        return balance * monthly_rate / (1 - (1 + monthly_rate) ** (-periods_left))
+
+    rows = [{
+        "month": start,
+        "opening_balance": initial,
+        "payment": 0.0,
+        "interest": 0.0,
+        "principal": 0.0,
+        "balance": initial,
+        "annual_rate": first_rate,
+        "phase": "Apertura",
+    }]
+    balance = initial
+    payment = first_payment
+    for number, month in enumerate(payment_dates, 1):
+        if number <= first_months:
+            rate, phase = first_rate, "Fijo inicial"
+        elif number <= first_months + second_months:
+            rate, phase = second_rate, "Fijo segundo tramo"
+        else:
+            rate, phase = variable_rate, "Variable estimado"
+        if number in (first_months + 1, first_months + second_months + 1):
+            payment = annuity(balance, rate, total_months - number + 1)
+        opening = balance
+        interest = opening * rate / 1200
+        principal = max(0.0, payment - interest)
+        closing = max(0.0, opening - principal)
+        if number == actual_payments:
+            closing = current
+            principal = max(0.0, opening - closing)
+            interest = max(0.0, payment - principal)
+        if principal > opening:
+            principal = opening
+            payment = principal + interest
+            closing = 0.0
+        balance = closing
+        rows.append({
+            "month": month,
+            "opening_balance": opening,
+            "payment": payment,
+            "interest": interest,
+            "principal": principal,
+            "balance": closing,
+            "annual_rate": rate,
+            "phase": phase,
+        })
+    return pd.DataFrame(rows)
+
+
 def calculate(data: dict[str, Any]) -> dict[str, Any]:
     data = deepcopy(data)
     start = pd.Timestamp(data["period"]["start"])
@@ -169,12 +246,14 @@ def calculate(data: dict[str, Any]) -> dict[str, Any]:
         jd_balances.append(balance)
     family["john_deere_payment"] = jd_payments
     family["john_deere_balance"] = jd_balances
+    mortgage = mortgage_schedule(data["debt"])
 
     return {
         "data": data,
         "member_a": member_a,
         "member_b": member_b,
         "family": family,
+        "mortgage": mortgage,
         "common": common,
         "common_total": common_total,
         "member_a_common": member_a_common,
@@ -200,4 +279,5 @@ def export_excel(result: dict[str, Any]) -> bytes:
         result["common"].to_excel(writer, sheet_name="Gastos comunes", index=False)
         pd.DataFrame(result["data"]["reform"]).to_excel(writer, sheet_name="Reforma", index=False)
         pd.DataFrame(result["data"]["funding"]).to_excel(writer, sheet_name="Financiación", index=False)
+        result["mortgage"].to_excel(writer, sheet_name="Hipoteca", index=False)
     return output.getvalue()
