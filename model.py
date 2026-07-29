@@ -199,6 +199,7 @@ def calculate(data: dict[str, Any]) -> dict[str, Any]:
     reform_payment_month = pd.Timestamp(
         savings_config.get("reform_payment_month", periods[0])
     ).strftime("%Y-%m")
+    reform_payment_amount = float(savings_config.get("reform_payment_amount", reform_total))
     march_extra_contribution = float(savings_config.get("march_extra_contribution", 0.0))
     vacation_outflows = []
     for index, (month, extra_contribution) in enumerate(zip(periods, family["extra_to_savings"])):
@@ -212,15 +213,20 @@ def calculate(data: dict[str, Any]) -> dict[str, Any]:
             savings_contributions.append(0.0)
             vacation_outflows.append(0.0)
             continue
-        march_contribution = (
-            march_extra_contribution
-            if data["scenario"]["include_march_bonus"] and month.month == 3
-            else 0.0
+        is_reform_payment_month = (
+            month.strftime("%Y-%m") == reform_payment_month and savings_checkpoint < month
         )
-        total_contribution = savings_monthly + float(extra_contribution) + march_contribution
-        savings_balance = savings_balance * (1 + monthly_rate) + total_contribution
-        if month.strftime("%Y-%m") == reform_payment_month and savings_checkpoint < month:
-            savings_balance -= reform_total
+        if is_reform_payment_month:
+            total_contribution = 0.0
+            savings_balance -= reform_payment_amount
+        else:
+            march_contribution = (
+                march_extra_contribution
+                if data["scenario"]["include_march_bonus"] and month.month == 3
+                else 0.0
+            )
+            total_contribution = savings_monthly + float(extra_contribution) + march_contribution
+            savings_balance = savings_balance * (1 + monthly_rate) + total_contribution
         vacation_outflow = vacation_amount if month.strftime("%Y-%m") == vacation_month else 0.0
         savings_balance -= vacation_outflow
         savings_values.append(savings_balance)
