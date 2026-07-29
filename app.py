@@ -220,6 +220,7 @@ def person_editor(key: str, label: str) -> None:
         use_container_width=True,
         num_rows="dynamic",
         column_config={
+            "id": None,
             "concept": st.column_config.TextColumn("Concepto", required=True),
             "category": st.column_config.TextColumn("Categoría", required=True),
             "monthly": st.column_config.NumberColumn("Importe mensual", min_value=0.0, step=1.0, format="%.2f €"),
