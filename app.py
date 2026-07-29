@@ -386,7 +386,7 @@ def time_chart(frame: pd.DataFrame, fields: list[str], names: dict[str, str], co
     )
 
 
-tabs = st.tabs(["Resumen familiar", "Gastos comunes", "Reforma", "Financiación", member_b_label, member_a_label])
+tabs = st.tabs(["Resumen familiar", "Gastos comunes", "Financiación", "Reforma", member_b_label, member_a_label])
 
 with tabs[5]:
     if person_key == "member_a":
@@ -420,7 +420,7 @@ with tabs[1]:
     data["common_expenses"] = normalize_records(common_edited.to_dict("records"), ["monthly", "member_a_share"])
     st.info("Los 65 € por persona para IBI, ecotasa y seguro de hogar están incluidos dentro del ahorro familiar.")
 
-with tabs[2]:
+with tabs[3]:
     st.subheader("Presupuesto de reforma")
     reform_edited = st.data_editor(
         pd.DataFrame(data["reform"]), use_container_width=True, num_rows="dynamic", hide_index=True,
@@ -464,7 +464,7 @@ with tabs[2]:
             st.success("Presupuesto guardado y verificado en la base de datos.")
         except Exception as exc:
             st.error(f"No se ha podido guardar el presupuesto: {exc}")
-with tabs[3]:
+with tabs[2]:
     st.subheader("Financiación")
     funding_edited = st.data_editor(
         pd.DataFrame(data["funding"]), use_container_width=True, num_rows="dynamic", hide_index=True,
@@ -627,11 +627,11 @@ with tabs[1]:
     ).properties(height=360)
     st.altair_chart(category_chart, use_container_width=True)
 
-with tabs[2]:
+with tabs[3]:
     st.divider()
     financial_metric(st.container(), "Coste total de reforma", money(result["reform_total"]), "negative")
 
-with tabs[3]:
+with tabs[2]:
     st.divider()
     c1, c2, c3 = st.columns(3)
     financial_metric(c1, "Coste de reforma", money(result["reform_total"]))
