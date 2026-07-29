@@ -386,15 +386,15 @@ def time_chart(frame: pd.DataFrame, fields: list[str], names: dict[str, str], co
     )
 
 
-tabs = st.tabs(["Resumen familiar", "Gastos comunes", "Reforma y deudas", member_b_label, member_a_label])
+tabs = st.tabs(["Resumen familiar", "Gastos comunes", "Reforma", "Financiación", member_b_label, member_a_label])
 
-with tabs[4]:
+with tabs[5]:
     if person_key == "member_a":
         person_editor("member_a", member_a_label)
     else:
         st.info(f"Los gastos personales de {member_a_label} son privados. Solo se incorpora su aportación neta al cálculo familiar.")
 
-with tabs[3]:
+with tabs[4]:
     if person_key == "member_b":
         person_editor("member_b", member_b_label)
     else:
@@ -431,6 +431,27 @@ with tabs[2]:
         }, key="reform_editor"
     )
     data["reform"] = normalize_records(reform_edited.to_dict("records"), ["amount"])
+    reform_chart_data = (
+        pd.DataFrame(data["reform"])
+        .groupby("concept", as_index=False)["amount"]
+        .sum()
+        .sort_values("amount", ascending=False)
+    )
+    if not reform_chart_data.empty:
+        reform_chart = (
+            alt.Chart(reform_chart_data)
+            .mark_bar(color="#B48A2C", cornerRadiusEnd=5)
+            .encode(
+                x=alt.X("amount:Q", title="Importe (€)"),
+                y=alt.Y("concept:N", title=None, sort="-x"),
+                tooltip=[
+                    alt.Tooltip("concept:N", title="Concepto"),
+                    alt.Tooltip("amount:Q", title="Importe", format=",.2f"),
+                ],
+            )
+            .properties(title="Coste por concepto", height=max(340, len(reform_chart_data) * 28))
+        )
+        st.altair_chart(reform_chart, use_container_width=True)
     st.caption(
         "El estimado general incluye además un ajuste no desglosado de "
         f"{money(float(data['savings'].get('reform_estimate_adjustment', 0.0)))}. "
@@ -443,6 +464,7 @@ with tabs[2]:
             st.success("Presupuesto guardado y verificado en la base de datos.")
         except Exception as exc:
             st.error(f"No se ha podido guardar el presupuesto: {exc}")
+with tabs[3]:
     st.subheader("Financiación")
     funding_edited = st.data_editor(
         pd.DataFrame(data["funding"]), use_container_width=True, num_rows="dynamic", hide_index=True,
@@ -582,12 +604,12 @@ def personal_dashboard(frame: pd.DataFrame, key: str, label: str) -> None:
     st.altair_chart(cashflow_chart, use_container_width=True)
 
 
-with tabs[4]:
+with tabs[5]:
     if person_key == "member_a":
         st.divider()
         personal_dashboard(member_a, "member_a", member_a_label)
 
-with tabs[3]:
+with tabs[4]:
     if person_key == "member_b":
         st.divider()
         personal_dashboard(member_b, "member_b", member_b_label)
@@ -606,6 +628,10 @@ with tabs[1]:
     st.altair_chart(category_chart, use_container_width=True)
 
 with tabs[2]:
+    st.divider()
+    financial_metric(st.container(), "Coste total de reforma", money(result["reform_total"]), "negative")
+
+with tabs[3]:
     st.divider()
     c1, c2, c3 = st.columns(3)
     financial_metric(c1, "Coste de reforma", money(result["reform_total"]))
