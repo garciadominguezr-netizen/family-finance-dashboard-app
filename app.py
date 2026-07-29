@@ -401,6 +401,7 @@ with tabs[4]:
         st.info(f"Los gastos personales de {member_b_label} son privados. Solo se incorpora su aportación neta al cálculo familiar.")
 
 with tabs[1]:
+    common_metrics = st.container()
     st.subheader("Gastos comunes")
     common_df = pd.DataFrame(data["common_expenses"])
     common_edited = st.data_editor(
@@ -615,11 +616,12 @@ with tabs[4]:
         personal_dashboard(member_b, "member_b", member_b_label)
 
 with tabs[1]:
+    with common_metrics:
+        c1, c2, c3 = st.columns(3)
+        financial_metric(c1, "Total común mensual", money(result["common_total"]))
+        financial_metric(c2, f"Parte de {member_a_label}", money(result["member_a_common"]))
+        financial_metric(c3, f"Parte de {member_b_label}", money(result["member_b_common"]))
     st.divider()
-    c1, c2, c3 = st.columns(3)
-    financial_metric(c1, "Total común mensual", money(result["common_total"]))
-    financial_metric(c2, f"Parte de {member_a_label}", money(result["member_a_common"]))
-    financial_metric(c3, f"Parte de {member_b_label}", money(result["member_b_common"]))
     category = result["common"].groupby("category", as_index=False)["monthly"].sum()
     category_chart = alt.Chart(category).mark_bar().encode(
         x=alt.X("monthly:Q", title="€ al mes"), y=alt.Y("category:N", title=None, sort="-x"),
