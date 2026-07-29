@@ -692,10 +692,6 @@ with tabs[2]:
         }, key="funding_editor"
     )
     data["funding"] = normalize_records(funding_edited.to_dict("records"), ["amount"])
-    d1, d2, d3 = st.columns(3)
-    data["debt"]["john_deere_principal"] = d1.number_input("Capital John Deere", min_value=0.0, value=float(data["debt"]["john_deere_principal"]), step=500.0)
-    data["debt"]["john_deere_months"] = d2.number_input("Plazo John Deere (meses)", min_value=1, value=int(data["debt"]["john_deere_months"]), step=1)
-    data["debt"]["family_loan"] = d3.number_input("Préstamo familiar", min_value=0.0, value=float(data["debt"]["family_loan"]), step=100.0)
     mortgage_defaults = {
         "mortgage_initial_principal": 460000.0,
         "mortgage_current_balance": 457943.42,
@@ -704,15 +700,15 @@ with tabs[2]:
         "mortgage_first_payment": "2026-06-01",
         "mortgage_term_months": 360,
         "mortgage_payment_first_period": 1565.84,
-        "mortgage_first_fixed_months": 6,
+        "mortgage_fixed_months": 96,
         "mortgage_first_fixed_rate": 1.4,
-        "mortgage_second_fixed_months": 54,
-        "mortgage_second_fixed_rate": 2.3,
         "mortgage_euribor_assumption": 2.0,
         "mortgage_variable_spread": 1.35,
     }
     for mortgage_key, mortgage_value in mortgage_defaults.items():
         data["debt"].setdefault(mortgage_key, mortgage_value)
+    data["debt"]["mortgage_fixed_months"] = 96
+    data["debt"]["mortgage_first_fixed_rate"] = 1.4
     st.subheader("Hipoteca")
     h1, h2, h3, h4 = st.columns(4)
     data["debt"]["mortgage_initial_principal"] = h1.number_input(
@@ -733,11 +729,11 @@ with tabs[2]:
         max_value=6.0,
         value=float(data["debt"]["mortgage_euribor_assumption"]),
         step=0.1,
-        help="Solo afecta a la proyección posterior a los primeros 60 meses.",
+        help="Solo afecta a la proyección posterior a los primeros 96 meses.",
     )
     st.caption(
-        "Condiciones contractuales: 360 meses · 1,40 % los primeros 6 meses · "
-        "2,30 % los siguientes 54 meses · después Euríbor 12 meses + 1,35 puntos, "
+        "Escenario bonificado: 360 meses · 1,40 % fijo durante los primeros 8 años · "
+        "después Euríbor 12 meses + 1,35 puntos, "
         "con revisión semestral. En Gastos comunes se mantienen 1.600 € mensuales."
     )
 
@@ -996,6 +992,17 @@ with tabs[2]:
                 ("Total", money(jd_debt + family_debt), "negative"),
             ],
         )
+        st.write("")
+        mortgage_amortized = float(data["debt"]["mortgage_initial_principal"]) - float(data["debt"]["mortgage_current_balance"])
+        financial_breakdown_metric(
+            st.container(),
+            "Situación hipotecaria actual",
+            [
+                ("Capital inicial", money(float(data["debt"]["mortgage_initial_principal"])), "neutral"),
+                ("Capital amortizado", money(mortgage_amortized), "positive"),
+                ("Capital pendiente", money(float(data["debt"]["mortgage_current_balance"])), "negative"),
+            ],
+        )
     st.divider()
     c1, c2, c3 = st.columns(3)
     financial_metric(c1, "Coste de reforma", money(result["reform_total"]))
@@ -1007,17 +1014,6 @@ with tabs[2]:
     financial_metric(e2, f"Aportado Extra {member_b_label}", money(float(data["savings"].get("member_b_extra", 0.0))), "positive")
     st.altair_chart(time_chart(family, ["john_deere_balance", "family_loan_balance"], {"john_deere_balance":"John Deere", "family_loan_balance":"Préstamo familiar"}), use_container_width=True)
     st.subheader("Evolución prevista de la hipoteca")
-    mortgage_amortized = float(data["debt"]["mortgage_initial_principal"]) - float(data["debt"]["mortgage_current_balance"])
-    financial_breakdown_metric(
-        st.container(),
-        "Situación hipotecaria actual",
-        [
-            ("Capital inicial", money(float(data["debt"]["mortgage_initial_principal"])), "neutral"),
-            ("Capital amortizado", money(mortgage_amortized), "positive"),
-            ("Capital pendiente", money(float(data["debt"]["mortgage_current_balance"])), "negative"),
-        ],
-    )
-    st.write("")
     mortgage_chart = alt.Chart(mortgage).mark_line(
         color="#B48A2C", strokeWidth=3, point=alt.OverlayMarkDef(filled=True, size=20)
     ).encode(
