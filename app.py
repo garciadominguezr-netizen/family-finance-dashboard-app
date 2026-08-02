@@ -662,6 +662,30 @@ with tabs[3]:
         save_data(client, data, db_context, person_key)
         st.session_state.finance_data = deepcopy(data)
 
+    moving_expense_key = "moving_expense_2026_08"
+    moving_expense_amount = 950.0
+    if not data["savings"].get(moving_expense_key):
+        data["reform"].append(
+            {
+                "partida": "Equipamiento casa",
+                "description": "Mudanza",
+                "base_amount": moving_expense_amount,
+                "vat_amount": 0.0,
+                "with_vat": False,
+                "total_amount": moving_expense_amount,
+                "payment_status": "No pagado",
+                "paid_amount": 0.0,
+                "pending_amount": moving_expense_amount,
+                "payment_date": "",
+            }
+        )
+        data["savings"]["reform_payment_amount"] = (
+            float(data["savings"].get("reform_payment_amount", 51920.46)) + moving_expense_amount
+        )
+        data["savings"][moving_expense_key] = moving_expense_amount
+        save_data(client, data, db_context, person_key)
+        st.session_state.finance_data = deepcopy(data)
+
     reform_metrics = st.container()
     st.subheader("Histórico detallado de la reforma")
     st.caption("Edita importes, IVA, estado y fecha. Los totales y cantidades pendientes se recalculan automáticamente.")
