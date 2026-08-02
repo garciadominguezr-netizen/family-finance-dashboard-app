@@ -629,9 +629,39 @@ with tabs[1]:
 
 with tabs[3]:
     data["reform"], reform_was_upgraded = upgrade_reform_records(data["reform"])
-    data["savings"]["reform_payment_amount"] = 65226.72
+    data["savings"].setdefault("reform_payment_amount", 65226.72)
     if reform_was_upgraded:
         data["savings"]["reform_estimate_adjustment"] = 0.0
+
+    revolut_payment_key = "revolut_reform_payment_2026_08"
+    revolut_reform_payment = 13306.26
+    if not data["savings"].get(revolut_payment_key):
+        data["savings"]["actual_savings_amount"] = max(
+            0.0,
+            float(data["savings"].get("actual_savings_amount", 63736.16)) - revolut_reform_payment,
+        )
+        data["savings"]["reform_payment_amount"] = max(
+            0.0,
+            float(data["savings"].get("reform_payment_amount", 65226.72)) - revolut_reform_payment,
+        )
+        for source in data.get("funding", []):
+            if str(source.get("source", "")).casefold() == "revolut":
+                source["amount"] = max(0.0, float(source.get("amount", 28431.28)) - revolut_reform_payment)
+                break
+        target_description = "presupuesto pendiente reforma"
+        for row in data["reform"]:
+            if str(row.get("description", "")).casefold() == target_description:
+                total_amount = float(row.get("total_amount", 0.0))
+                previous_paid = float(row.get("paid_amount", 0.0))
+                row["paid_amount"] = min(total_amount, previous_paid + revolut_reform_payment)
+                row["pending_amount"] = max(0.0, total_amount - row["paid_amount"])
+                row["payment_status"] = "Pagado" if row["pending_amount"] == 0 else "Parcial"
+                row["payment_date"] = "2026-08-02"
+                break
+        data["savings"][revolut_payment_key] = revolut_reform_payment
+        save_data(client, data, db_context, person_key)
+        st.session_state.finance_data = deepcopy(data)
+
     reform_metrics = st.container()
     st.subheader("Histórico detallado de la reforma")
     st.caption("Edita importes, IVA, estado y fecha. Los totales y cantidades pendientes se recalculan automáticamente.")
