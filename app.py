@@ -286,6 +286,7 @@ st.markdown(
       .finance-breakdown-value {font-size:1.48rem;line-height:1.15;font-weight:730;letter-spacing:-.035em;color:var(--ra-ink);}
       .finance-breakdown-value.positive {color:var(--ra-positive);}
       .finance-breakdown-value.negative {color:var(--ra-negative);}
+      .finance-breakdown-value.alert {color:#E00000;font-weight:820;text-shadow:0 0 14px rgba(224,0,0,.14);}
       [data-testid="stVegaLiteChart"] {background:linear-gradient(145deg,rgba(255,255,255,.94),rgba(255,252,245,.84));backdrop-filter:blur(14px);border:1px solid #D8BA73;border-radius:20px;padding:16px 18px 10px;box-shadow:0 14px 38px rgba(89,69,28,.09),inset 0 1px 0 rgba(255,255,255,.9);overflow:hidden;}
     </style>
     """,
@@ -823,6 +824,8 @@ def current_family_status(frame: pd.DataFrame) -> tuple[dict[str, float], str]:
 with tabs[0]:
     current_status, current_status_label = current_family_status(family)
     st.caption(current_status_label)
+    current_savings = float(current_status["savings_balance"])
+    savings_tone = "positive" if current_savings > 0 else "alert" if current_savings < 0 else "neutral"
     total_credit_debt = float(current_status["john_deere_balance"]) + float(current_status["family_loan_balance"])
     reform_pending_summary = sum(
         float(item.get("pending_amount", max(0.0, float(item.get("total_amount", 0.0)) - float(item.get("paid_amount", 0.0)))))
@@ -832,7 +835,7 @@ with tabs[0]:
         st.container(),
         "Situación financiera familiar",
         [
-            ("Ahorro familiar", money(float(current_status["savings_balance"])), "positive"),
+            ("Ahorro familiar", money(current_savings), savings_tone),
             ("Deudas créditos totales", money(total_credit_debt), "negative"),
             ("Hipoteca pendiente", money(float(data["debt"]["mortgage_current_balance"])), "negative"),
             ("Reforma pendiente", money(reform_pending_summary), "negative"),
